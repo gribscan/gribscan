@@ -32,19 +32,13 @@ The resulting JSON-file can be interpreted by `ReferenceFileSystem` and `zarr` a
 ```python
 import rawgribcodec
 import xarray as xr
-import fsspec
-
-fs = fsspec.filesystem(
-    "reference", 
-    fo="a.json",
-    remote_protocol="file", 
-    skip_instance_cache=True
-)
-m = fs.get_mapper("")
-ds = xr.open_dataset(m, , consolidated=False)
+ds = xr.open_zarr("reference::a.json", consolidated=False)
+ds
 ```
 
 Note that `rawgribcodec` **must** be imported in order to register `rawgrib` as a [`numcodecs`](https://numcodecs.readthedocs.io/en/stable/index.html) codec, which enables the use of GRIB messages as zarr-chunks. As opposed to `gribscan`, `rawgribcodec` only depends on `eccodes` and doesn't use `cfgrib` at all.
+
+`fsspec` supports [URL chaining](https://filesystem-spec.readthedocs.io/en/latest/features.html#url-chaining). The prefix `reference::` before the path signals to `fsspec`, that after loading the given path, an `ReferenceFileSystem` should be initialized with whatever is found in that path. In principle, it's well possible to use `ReferenceFileSystem` also across HTTP or wihin ZIP files or a combination thereof...
 
 ### combining multiple gribs into a larger dataset
 
