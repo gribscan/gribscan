@@ -51,7 +51,16 @@ def gribscan(filelike):
                    "shape": [s]},
                }
 
-def grib2kerchunk_refs(filelike, file_ref):
+def raise_duplicate_error(a, b, context):
+    raise ValueError("duplicate timestep in var: {name}, time: {time}".format(**context))
+
+def use_first(a, b, context):
+    return a
+
+def use_second(a, b, context):
+    return b
+
+def grib2kerchunk_refs(filelike, file_ref, on_duplicate=raise_duplicate_error):
     """
     scans a gribfile for messages and returns indexing data in kerchunk-json format
     """
@@ -74,11 +83,12 @@ def grib2kerchunk_refs(filelike, file_ref):
             array_meta[name] = msg["array"]
 
         time = msg["time"]
-        if time in chunks_by_time[name]:
-            print(msg)
-            raise ValueError(f"duplicate timestep var: {name}, time: {time}")
+        chunk = [file_ref, msg["offset"], msg["size"]]
 
-        chunks_by_time[name][time] = [file_ref, msg["offset"], msg["size"]]
+        if time in chunks_by_time[name]:
+            chunks_by_time[name][time] = on_duplicate(chunks_by_time[name][time], chunk, {"name": name, "time": time})
+        else:
+            chunks_by_time[name][time] = chunk
 
     times = np.unique([k for name, times in chunks_by_time.items() for k in times])
 
@@ -115,9 +125,16 @@ def grib2kerchunk_refs(filelike, file_ref):
 
     return refs
 
-def grib2kerchunk(infile, outfile):
+def grib2kerchunk(infile, outfile, duplicate_strategy=None):
+    if duplicate_strategy == "first":
+        on_duplicate = use_first
+    elif duplicate_strategy == "second":
+        on_duplicate = use_second
+    else:
+        on_duplicate = raise_duplicate_error
+
     with open(infile, "rb") as f:
-        refs = grib2kerchunk_refs(f, "{{u}}")
+        refs = grib2kerchunk_refs(f, "{{u}}", on_duplicate)
 
     res = {
         "version": 1,
@@ -135,10 +152,11 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("source", help="source gribfile")
     parser.add_argument("target", help="target index file (JSON)")
+    parser.add_argument("-d", "--on_duplicate", default=None, help="what to do on duplicate messages (one of first, second, None)")
     args = parser.parse_args()
 
     #gribfile = "/work/bd1154/highresmonsoon/experiments/luk1000/luk1000_atm2d_ml_20200618T000000Z.grb2"
-    grib2kerchunk(args.source, args.target)
+    grib2kerchunk(args.source, args.target, args.on_duplicate)
 
 if __name__ == "__main__":
     main()
