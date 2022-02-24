@@ -1,5 +1,6 @@
 import json
 import base64
+import pathlib
 from collections import defaultdict
 
 import cfgrib
@@ -139,7 +140,7 @@ def grib2kerchunk(infile, outfile, duplicate_strategy=None):
     res = {
         "version": 1,
         "templates": {
-            "u": infile,
+            "u": pathlib.Path(infile).resolve().as_posix(),
         },
         "refs": refs
     }
