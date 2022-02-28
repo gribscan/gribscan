@@ -1,3 +1,4 @@
+import datetime
 import json
 import base64
 import pathlib
@@ -137,24 +138,33 @@ def get_time_offset(gribmessage):
     # TODO: handling of time ranges, see cdo: libcdi/src/gribapi_utilities.c: gribMakeTimeString
     return offset
 
-def gribscan(filelike):
+def gribscan(filelike, **kwargs):
     for offset, size, data in _split_file(filelike):
         m = cfgrib.cfmessage.CfMessage(eccodes.codes_new_from_message(data))
         t = eccodes.codes_get_native_type(m.codes_id, "values")
         s = eccodes.codes_get_size(m.codes_id, "values")
 
+        dt = datetime.datetime.fromtimestamp(m["time"])
         yield {"globals": {k: m[k] for k in cfgrib.dataset.GLOBAL_ATTRIBUTES_KEYS},
                "attrs": {k: m.get(k, None) for k in cfgrib.dataset.DATA_ATTRIBUTES_KEYS + cfgrib.dataset.EXTRA_DATA_ATTRIBUTES_KEYS},
-               "time": m["time"] + get_time_offset(m),
+               "posix_time": m["time"] + get_time_offset(m),
+               "domain": m["globalDomain"],
+               "time": dt.strftime("%H%M"),
+               "date": dt.strftime("%Y%m%d"),
+               "levtype": m.get("typeOfLevel", None),
+               "level": m.get("level", None),
+               "param": m.get("shortName", None),
+               "type": m.get("dataType", None),
                "referenceTime": m["time"],
                "step": m["step"],
-               "offset": offset,
-               "size": size,
+               "_offset": offset,
+               "_length": size,
                "array": {
                    "dtype": np.dtype(t).str,
                    "shape": [s],
                 },
                "extra": {k: m.get(k, None) for k in EXTRA_PARAMETERS},
+               **kwargs
                }
 
 def raise_duplicate_error(a, b, context):
