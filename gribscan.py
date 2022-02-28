@@ -1,4 +1,3 @@
-import datetime
 import json
 import base64
 import pathlib
@@ -144,13 +143,12 @@ def gribscan(filelike, **kwargs):
         t = eccodes.codes_get_native_type(m.codes_id, "values")
         s = eccodes.codes_get_size(m.codes_id, "values")
 
-        dt = datetime.datetime.fromtimestamp(m["time"])
         yield {"globals": {k: m[k] for k in cfgrib.dataset.GLOBAL_ATTRIBUTES_KEYS},
                "attrs": {k: m.get(k, None) for k in cfgrib.dataset.DATA_ATTRIBUTES_KEYS + cfgrib.dataset.EXTRA_DATA_ATTRIBUTES_KEYS},
                "posix_time": m["time"] + get_time_offset(m),
                "domain": m["globalDomain"],
-               "time": dt.strftime("%H%M"),
-               "date": dt.strftime("%Y%m%d"),
+               "time": f"{m['hour']:02d}{m['minute']:02d}",
+               "date": f"{m['year']:04d}{m['month']:02d}{m['day']:02d}",
                "levtype": m.get("typeOfLevel", None),
                "level": m.get("level", None),
                "param": m.get("shortName", None),
