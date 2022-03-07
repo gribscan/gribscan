@@ -1,3 +1,4 @@
+import itertools
 import json
 import base64
 import pathlib
@@ -164,6 +165,35 @@ def gribscan(filelike, **kwargs):
                "extra": {k: m.get(k, None) for k in EXTRA_PARAMETERS},
                **kwargs
                }
+
+
+def parse_index(indexfile, duplicate="replace"):
+    index = {}
+    with open(indexfile, "r") as f:
+        for line in f:
+            meta = json.loads(line)
+
+            if meta["levtype"] == "generalVertical" and meta["param"] == "zg":
+                meta["param"] = "zghalf"
+
+            tinfo = (meta["param"], meta["level"], meta["posix_time"])
+
+            if tinfo in index:
+                if duplicate == "replace":
+                    index[tinfo] = meta
+                elif duplicate == "keep":
+                    continue
+                elif duplicate == "error":
+                    raise Exception(f"Duplicate time step: {tinfo}")
+            else:
+                index[tinfo] = meta
+
+    return list(index.values())
+
+
+def parse_indices(indices, **kwargs):
+    return list(itertools.chain(*(parse_index(index, **kwargs) for index in indices)))
+
 
 def raise_duplicate_error(a, b, context):
     raise ValueError("duplicate timestep in var: {name}, time: {time}".format(**context))
