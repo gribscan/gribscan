@@ -1,3 +1,4 @@
+import itertools
 import json
 import base64
 import pathlib
@@ -137,7 +138,7 @@ def get_time_offset(gribmessage):
     # TODO: handling of time ranges, see cdo: libcdi/src/gribapi_utilities.c: gribMakeTimeString
     return offset
 
-def gribscan(filelike):
+def gribscan(filelike, **kwargs):
     for offset, size, data in _split_file(filelike):
         m = cfgrib.cfmessage.CfMessage(eccodes.codes_new_from_message(data))
         t = eccodes.codes_get_native_type(m.codes_id, "values")
@@ -145,17 +146,54 @@ def gribscan(filelike):
 
         yield {"globals": {k: m[k] for k in cfgrib.dataset.GLOBAL_ATTRIBUTES_KEYS},
                "attrs": {k: m.get(k, None) for k in cfgrib.dataset.DATA_ATTRIBUTES_KEYS + cfgrib.dataset.EXTRA_DATA_ATTRIBUTES_KEYS},
-               "time": m["time"] + get_time_offset(m),
+               "posix_time": m["time"] + get_time_offset(m),
+               "domain": m["globalDomain"],
+               "time": f"{m['hour']:02d}{m['minute']:02d}",
+               "date": f"{m['year']:04d}{m['month']:02d}{m['day']:02d}",
+               "levtype": m.get("typeOfLevel", None),
+               "level": m.get("level", None),
+               "param": m.get("shortName", None),
+               "type": m.get("dataType", None),
                "referenceTime": m["time"],
                "step": m["step"],
-               "offset": offset,
-               "size": size,
+               "_offset": offset,
+               "_length": size,
                "array": {
                    "dtype": np.dtype(t).str,
                    "shape": [s],
                 },
                "extra": {k: m.get(k, None) for k in EXTRA_PARAMETERS},
+               **kwargs
                }
+
+
+def parse_index(indexfile, duplicate="replace"):
+    index = {}
+    with open(indexfile, "r") as f:
+        for line in f:
+            meta = json.loads(line)
+
+            if meta["levtype"] == "generalVertical" and meta["param"] == "zg":
+                meta["param"] = "zghalf"
+
+            tinfo = (meta["param"], meta["level"], meta["posix_time"])
+
+            if tinfo in index:
+                if duplicate == "replace":
+                    index[tinfo] = meta
+                elif duplicate == "keep":
+                    continue
+                elif duplicate == "error":
+                    raise Exception(f"Duplicate time step: {tinfo}")
+            else:
+                index[tinfo] = meta
+
+    return list(index.values())
+
+
+def parse_indices(indices, **kwargs):
+    return list(itertools.chain(*(parse_index(index, **kwargs) for index in indices)))
+
 
 def raise_duplicate_error(a, b, context):
     raise ValueError("duplicate timestep in var: {name}, time: {time}".format(**context))
@@ -166,65 +204,121 @@ def use_first(a, b, context):
 def use_second(a, b, context):
     return b
 
-def grib2kerchunk_refs(filelike, file_ref, on_duplicate=raise_duplicate_error):
+def grib2kerchunk_refs(gribindex):
     """
     scans a gribfile for messages and returns indexing data in kerchunk-json format
     """
+    # Store coordinate information (time, level) for each variable
+    coords_by_variable = defaultdict(set)
+    for msg in gribindex:
+        coords_by_variable[msg["param"]].add((msg["posix_time"], msg["level"]))
+
+    # Determine is variables have a time and/or vertical dimension
+    has_vertical = set()
+    has_time = set()
+    for varname, coords in coords_by_variable.items():
+        if len(set(c[0] for c in coords)) > 1:
+            has_time.add(varname)
+        if len(set(c[1] for c in coords)) > 1:
+            has_vertical.add(varname)
+
+    # Construct a dimension information per variable
+    dimensions_by_variable = defaultdict(list)
+    for varname in coords_by_variable.keys():
+        if varname in has_time:
+            if varname in has_vertical:
+                dimensions_by_variable[varname].append("time3d")
+            else:
+                dimensions_by_variable[varname].append("time2d")
+
+        if varname in has_vertical:
+            dimensions_by_variable[varname].append("height")
+
+        dimensions_by_variable[varname].append("cell")
+
+    # Create time arrays for 2d and 3d fields individually
+    time2d = np.unique([c[0] for varname, coords in coords_by_variable.items() if varname in has_time and varname not in has_vertical for c in coords])
+    time3d = np.unique([c[0] for varname, coords in coords_by_variable.items() if varname in has_time and varname in has_vertical for c in coords])
+
+    # Try to estimate the number of model levels
+    assert "zg" in coords_by_variable, "Cannot determine number of levels"
+    nlevels = len(coords_by_variable["zg"])
+
+    # Create references filesystem.
     refs = {}
     array_meta = {}
     array_attrs = {}
 
-    chunks_by_time = {}
+    chunks_by_coordinate = {}
 
-    for msg in gribscan(filelike):
-        name = msg["attrs"]["shortName"]
-        
-        if name not in chunks_by_time:
-            chunks_by_time[name] = {}
+    for msg in gribindex:
+        name = msg["param"]
+
+        if name not in chunks_by_coordinate:
+            chunks_by_coordinate[name] = defaultdict(dict)
             global_attrs = msg["globals"]
             refs[f"{name}/.zattrs"] = json.dumps({**{k: v for k, v in msg["attrs"].items()
                                                           if v is not None and v not in {"undef", "unknown"}},
-                                                  "_ARRAY_DIMENSIONS": ["time", "values"]})
+                                                  "_ARRAY_DIMENSIONS": dimensions_by_variable[name]})
             array_attrs[name] = msg["attrs"]
             array_meta[name] = msg["array"]
 
-        time = msg["time"]
-        chunk = [file_ref, msg["offset"], msg["size"]]
+        coords = []
+        if name in has_time:
+            coords.append(msg["posix_time"])
+        if name in has_vertical:
+            coords.append(msg["level"])
+        coords.append(0)
 
-        if time in chunks_by_time[name]:
-            chunks_by_time[name][time] = on_duplicate(chunks_by_time[name][time], chunk, {"name": name, "time": time})
-        else:
-            chunks_by_time[name][time] = chunk
+        chunks_by_coordinate[name][tuple(coords)] = [msg["filename"], msg["_offset"], msg["_length"]]
 
-    times = np.unique([k for name, times in chunks_by_time.items() for k in times])
+    for name, coordchunks in chunks_by_coordinate.items():
+        dims = dimensions_by_variable[name]
 
-    for name, timechunks in chunks_by_time.items():
-        for i, t in enumerate(times):
-            if t in timechunks:
-                refs[f"{name}/{i}.0"] = timechunks[t]
+        # TODO: That is still ugly.
+        if name in has_time:
+            if name in has_vertical:
+                coords = {"time3d": time3d, "height": range(nlevels), "cell": range(1)}
+            else:
+                coords = {"time2d": time2d, "cell": range(1)}
+        elif name in has_vertical:
+            coords = {"height": range(nlevels), "cell": range(1)}
+
+        for idx in itertools.product(*[enumerate(c) for c in coords.values()]):
+            if tuple(i[1] for i in idx) in coordchunks:
+                refs[f"{name}/" + ".".join([str(i[0]) for i in idx])] = coordchunks[tuple(i[1] for i in idx)]
 
         meta = array_meta[name]
-        refs[f"{name}/.zarray"] = json.dumps({"chunks": [1, *meta["shape"]],
+
+        chunk_info = {
+            "shape": [*[len(coords[d]) for d in dims if d != "cell"], *meta["shape"]],
+            "chunks": [*[1 for d in dims if d != "cell"], *meta["shape"]],
+        }
+
+        refs[f"{name}/.zarray"] = json.dumps({**chunk_info,
                                               "compressor": {"id": "rawgrib"},
                                               "dtype": meta["dtype"],
                                               "fill_value": array_attrs[name].get("missingValue", 9999),
                                               "filters": [],
                                               "order": "C",
-                                              "shape": [len(times), *meta["shape"]],
                                               "zarr_format": 2,
                                               })
 
-    refs["time/.zattrs"] = json.dumps({**cfgrib.dataset.COORD_ATTRS["time"], "_ARRAY_DIMENSIONS": ["time"]})
-    refs["time/.zarray"] = json.dumps({"chunks": [len(times)],
-                                       "compressor": None,
-                                       "dtype": times.dtype.str,
-                                       "fill_value": 0,
-                                       "filters": [],
-                                       "order": "C",
-                                       "shape": [len(times)],
-                                       "zarr_format": 2,
-                                       })
-    refs["time/0"] = "base64:" + base64.b64encode(bytes(times)).decode("ascii")
+    for name, time_arr in (("time2d", time2d), ("time3d", time3d)):
+        refs[f"{name}/.zattrs"] = json.dumps({**cfgrib.dataset.COORD_ATTRS["time"], "_ARRAY_DIMENSIONS": [name]})
+        refs[f"{name}/.zarray"] = json.dumps(
+            {
+                "chunks": [time_arr.size],
+                "compressor": None,
+                "dtype": time_arr.dtype.str,
+                "fill_value": 0,
+                "filters": [],
+                "order": "C",
+                "shape": [time_arr.size],
+                "zarr_format": 2,
+            }
+        )
+        refs[f"{name}/0"] = "base64:" + base64.b64encode(bytes(time_arr)).decode("ascii")
 
     refs[".zgroup"] = json.dumps({"zarr_format": 2})
     refs[".zattrs"] = json.dumps(global_attrs)
