@@ -249,6 +249,10 @@ def grib2kerchunk_refs(gribindex):
     array_meta = {}
     array_attrs = {}
 
+    # Create Jinja templates for filenames {"filename": "fN"} and {"{{fN}}": "filename"}
+    filename_templates = {f"f{i}": f for i, f in enumerate(set(m["filename"] for m in gribindex))}
+    to_template = {v: r"{{u}}" + f"{{{{{k}}}}}" for k, v in filename_templates.items()}
+
     chunks_by_coordinate = {}
 
     for msg in gribindex:
@@ -270,7 +274,7 @@ def grib2kerchunk_refs(gribindex):
             coords.append(msg["level"])
         coords.append(0)
 
-        chunks_by_coordinate[name][tuple(coords)] = [msg["filename"], msg["_offset"], msg["_length"]]
+        chunks_by_coordinate[name][tuple(coords)] = [to_template[msg["filename"]], msg["_offset"], msg["_length"]]
 
     for name, coordchunks in chunks_by_coordinate.items():
         dims = dimensions_by_variable[name]
@@ -323,7 +327,16 @@ def grib2kerchunk_refs(gribindex):
     refs[".zgroup"] = json.dumps({"zarr_format": 2})
     refs[".zattrs"] = json.dumps(global_attrs)
 
-    return refs
+    res = {
+        "version": 1,
+        "templates": {
+           "u": "",  # defaults to plain filenames (can be updated externally)
+            **filename_templates,
+        },
+        "refs": refs
+    }
+
+    return res
 
 def grib2kerchunk(infile, outfile, duplicate_strategy=None):
     if duplicate_strategy == "first":
