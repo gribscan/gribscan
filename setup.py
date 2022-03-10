@@ -18,6 +18,10 @@ setup(
         "numpy",
     ],
     entry_points={
+        "console_scripts": [
+            "gribscan-index=gribscan.tools:create_index",
+            "gribscan-build=gribscan.tools:build_dataset",
+        ],
         "numcodecs.codecs": [
             "rawgrib=gribscan.rawgribcodec:RawGribCodec",
             "aec=gribscan.aeccodec:AECCodec",

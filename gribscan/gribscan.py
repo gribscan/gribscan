@@ -138,7 +138,8 @@ def get_time_offset(gribmessage):
     # TODO: handling of time ranges, see cdo: libcdi/src/gribapi_utilities.c: gribMakeTimeString
     return offset
 
-def gribscan(filelike, **kwargs):
+
+def scan_gribfile(filelike, **kwargs):
     for offset, size, data in _split_file(filelike):
         m = cfgrib.cfmessage.CfMessage(eccodes.codes_new_from_message(data))
         t = eccodes.codes_get_native_type(m.codes_id, "values")
@@ -165,6 +166,19 @@ def gribscan(filelike, **kwargs):
                "extra": {k: m.get(k, None) for k in EXTRA_PARAMETERS},
                **kwargs
                }
+
+
+def write_index(gribfile, idxfile=None):
+    p = pathlib.Path(gribfile)
+    if idxfile is None:
+        idxfile = p.parent / (p.stem + ".index")
+
+    gen = scan_gribfile(open(p, "rb"), filename=p.name)
+
+    with open(idxfile, 'w') as output_file:
+        for record in gen:
+            json.dump(record, output_file)
+            output_file.write("\n")
 
 
 def parse_index(indexfile, duplicate="replace"):
@@ -194,15 +208,6 @@ def parse_index(indexfile, duplicate="replace"):
 def parse_indices(indices, **kwargs):
     return list(itertools.chain(*(parse_index(index, **kwargs) for index in indices)))
 
-
-def raise_duplicate_error(a, b, context):
-    raise ValueError("duplicate timestep in var: {name}, time: {time}".format(**context))
-
-def use_first(a, b, context):
-    return a
-
-def use_second(a, b, context):
-    return b
 
 def grib2kerchunk_refs(gribindex):
     """
@@ -241,8 +246,11 @@ def grib2kerchunk_refs(gribindex):
     time3d = np.unique([c[0] for varname, coords in coords_by_variable.items() if varname in has_time and varname in has_vertical for c in coords])
 
     # Try to estimate the number of model levels
-    assert "zg" in coords_by_variable, "Cannot determine number of levels"
-    nlevels = len(coords_by_variable["zg"])
+    if has_vertical:
+        assert "zg" in coords_by_variable, "Cannot determine number of levels"
+        nlevels = len(coords_by_variable["zg"])
+    else:
+        nlevels = 1
 
     # Create references filesystem.
     refs = {}
@@ -337,39 +345,3 @@ def grib2kerchunk_refs(gribindex):
     }
 
     return res
-
-def grib2kerchunk(infile, outfile, duplicate_strategy=None):
-    if duplicate_strategy == "first":
-        on_duplicate = use_first
-    elif duplicate_strategy == "second":
-        on_duplicate = use_second
-    else:
-        on_duplicate = raise_duplicate_error
-
-    with open(infile, "rb") as f:
-        refs = grib2kerchunk_refs(f, "{{u}}", on_duplicate)
-
-    res = {
-        "version": 1,
-        "templates": {
-            "u": pathlib.Path(infile).resolve().as_posix(),
-        },
-        "refs": refs
-    }
-
-    with open(outfile, "w") as indexfile:
-        json.dump(res, indexfile)
-
-def main():
-    import argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument("source", help="source gribfile")
-    parser.add_argument("target", help="target index file (JSON)")
-    parser.add_argument("-d", "--on_duplicate", default=None, help="what to do on duplicate messages (one of first, second, None)")
-    args = parser.parse_args()
-
-    #gribfile = "/work/bd1154/highresmonsoon/experiments/luk1000/luk1000_atm2d_ml_20200618T000000Z.grb2"
-    grib2kerchunk(args.source, args.target, args.on_duplicate)
-
-if __name__ == "__main__":
-    main()
