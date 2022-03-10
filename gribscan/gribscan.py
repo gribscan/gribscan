@@ -316,7 +316,10 @@ def grib2kerchunk_refs(gribindex):
                                               "zarr_format": 2,
                                               })
 
+    # TODO: This should, iderally, be handled by a "coords" dict-like
     for name, time_arr in (("time2d", time2d), ("time3d", time3d)):
+        if len(time_arr) == 0:
+            continue
         refs[f"{name}/.zattrs"] = json.dumps({**cfgrib.dataset.COORD_ATTRS["time"], "_ARRAY_DIMENSIONS": [name]})
         refs[f"{name}/.zarray"] = json.dumps(
             {
