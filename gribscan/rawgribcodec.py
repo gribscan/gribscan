@@ -3,7 +3,7 @@ import numcodecs
 from numcodecs.compat import ndarray_copy, ensure_contiguous_ndarray
 
 class RawGribCodec(numcodecs.abc.Codec):
-    codec_id = "rawgrib"
+    codec_id = "gribscan.rawgrib"
 
     def encode(self, buf):
         return buf
@@ -26,5 +26,6 @@ class RawGribCodec(numcodecs.abc.Codec):
 
 def register():
     numcodecs.register_codec(RawGribCodec, "rawgrib")
+    numcodecs.register_codec(RawGribCodec)
 
 register()

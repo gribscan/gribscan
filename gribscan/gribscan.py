@@ -186,171 +186,186 @@ def write_index(gribfile, idxfile=None):
             json.dump(record, output_file)
             output_file.write("\n")
 
-
-def parse_index(indexfile, duplicate="replace"):
+def parse_index(indexfile, m2key, duplicate="replace"):
     index = {}
     with open(indexfile, "r") as f:
         for line in f:
             meta = json.loads(line)
-
-            if meta["levtype"] == "generalVertical" and meta["param"] == "zg":
-                meta["param"] = "zghalf"
-
-            tinfo = (meta["param"], meta["level"], meta["posix_time"])
-
+            tinfo = m2key(meta)
             if tinfo in index:
                 if duplicate == "replace":
                     index[tinfo] = meta
                 elif duplicate == "keep":
                     continue
                 elif duplicate == "error":
-                    raise Exception(f"Duplicate time step: {tinfo}")
+                    raise Exception(f"Duplicate message step: {tinfo}")
             else:
                 index[tinfo] = meta
-
     return list(index.values())
 
+class MagicianBase:
+    def variable_hook(self, key, info):
+        ...
 
-def parse_indices(indices, **kwargs):
-    return list(itertools.chain(*(parse_index(index, **kwargs) for index in indices)))
+    def globals_hook(self, global_attrs):
+        return global_attrs
 
+    def coords_hook(self, name, coords):
+        return {}, coords
 
-def grib2kerchunk_refs(gribindex):
-    """
-    scans a gribfile for messages and returns indexing data in kerchunk-json format
-    """
-    # Store coordinate information (time, level) for each variable
-    coords_by_variable = defaultdict(set)
-    for msg in gribindex:
-        coords_by_variable[msg["param"]].add((msg["posix_time"], msg["level"]))
+    def m2key(self, meta):
+        return tuple(meta[key] for key in self.varkeys), tuple(meta[key] for key in self.dimkeys)
 
-    # Determine is variables have a time and/or vertical dimension
-    has_vertical = set()
-    has_time = set()
-    for varname, coords in coords_by_variable.items():
-        if len(set(c[0] for c in coords)) > 1:
-            has_time.add(varname)
-        if len(set(c[1] for c in coords)) > 1:
-            has_vertical.add(varname)
+class Magician(MagicianBase):
+    varkeys = "param", "levtype"
+    dimkeys = "posix_time", "level"
 
-    # Construct a dimension information per variable
-    dimensions_by_variable = defaultdict(list)
-    for varname in coords_by_variable.keys():
-        if varname in has_time:
-            if varname in has_vertical:
-                dimensions_by_variable[varname].append("time3d")
-            else:
-                dimensions_by_variable[varname].append("time2d")
+    def variable_hook(self, key, info):
+        param, levtype = key
+        name = param
+        dims = info["dims"]
 
-        if varname in has_vertical:
-            dimensions_by_variable[varname].append("height")
+        if levtype == "generalVertical":
+            name = param + "half" if param == "zg" else param
+            dims = tuple("halflevel" if dim == "level" else dim for dim in dims)
+        if len(dims) > 1:
+            dims = tuple("time3D" if dim == "posix_time" else dim for dim in dims)
+        else:
+            dims = tuple("time" if dim == "posix_time" else dim for dim in dims)
 
-        dimensions_by_variable[varname].append("cell")
-
-    # Create time arrays for 2d and 3d fields individually
-    time2d = np.unique([c[0] for varname, coords in coords_by_variable.items() if varname in has_time and varname not in has_vertical for c in coords])
-    time3d = np.unique([c[0] for varname, coords in coords_by_variable.items() if varname in has_time and varname in has_vertical for c in coords])
-
-    # Try to estimate the number of model levels
-    if has_vertical:
-        assert "zg" in coords_by_variable, "Cannot determine number of levels"
-        nlevels = len(coords_by_variable["zg"])
-    else:
-        nlevels = 1
-
-    # Create references filesystem.
-    refs = {}
-    array_meta = {}
-    array_attrs = {}
-
-    # Create Jinja templates for filenames {"filename": "fN"} and {"{{fN}}": "filename"}
-    filename_templates = {f"f{i}": f for i, f in enumerate(set(m["filename"] for m in gribindex))}
-    to_template = {v: r"{{u}}" + f"{{{{{k}}}}}" for k, v in filename_templates.items()}
-
-    chunks_by_coordinate = {}
-
-    for msg in gribindex:
-        name = msg["param"]
-
-        if name not in chunks_by_coordinate:
-            chunks_by_coordinate[name] = defaultdict(dict)
-            global_attrs = msg["globals"]
-            refs[f"{name}/.zattrs"] = json.dumps({**{k: v for k, v in msg["attrs"].items()
-                                                          if v is not None and v not in {"undef", "unknown"}},
-                                                  "_ARRAY_DIMENSIONS": dimensions_by_variable[name]})
-            array_attrs[name] = msg["attrs"]
-            array_meta[name] = msg["array"]
-
-        coords = []
-        if name in has_time:
-            coords.append(msg["posix_time"])
-        if name in has_vertical:
-            coords.append(msg["level"])
-        coords.append(0)
-
-        chunks_by_coordinate[name][tuple(coords)] = [to_template[msg["filename"]], msg["_offset"], msg["_length"]]
-
-    for name, coordchunks in chunks_by_coordinate.items():
-        dims = dimensions_by_variable[name]
-
-        # TODO: That is still ugly.
-        if name in has_time:
-            if name in has_vertical:
-                coords = {"time3d": time3d, "height": range(nlevels), "cell": range(1)}
-            else:
-                coords = {"time2d": time2d, "cell": range(1)}
-        elif name in has_vertical:
-            coords = {"height": range(nlevels), "cell": range(1)}
-
-        for idx in itertools.product(*[enumerate(c) for c in coords.values()]):
-            if tuple(i[1] for i in idx) in coordchunks:
-                refs[f"{name}/" + ".".join([str(i[0]) for i in idx])] = coordchunks[tuple(i[1] for i in idx)]
-
-        meta = array_meta[name]
-
-        chunk_info = {
-            "shape": [*[len(coords[d]) for d in dims if d != "cell"], *meta["shape"]],
-            "chunks": [*[1 for d in dims if d != "cell"], *meta["shape"]],
+        return {
+            "dims": dims,
+            "name": name,
         }
 
-        refs[f"{name}/.zarray"] = json.dumps({**chunk_info,
-                                              "compressor": {"id": "rawgrib"},
-                                              "dtype": meta["dtype"],
-                                              "fill_value": array_attrs[name].get("missingValue", 9999),
-                                              "filters": [],
-                                              "order": "C",
-                                              "zarr_format": 2,
-                                              })
+    def coords_hook(self, name, coords):
+        if "time" in name:
+            attrs = {'units': 'seconds since 1970-01-01T00:00:00',
+                     'calendar': 'proleptic_gregorian'}
+        else:
+            attrs = {}
+        return attrs, coords
 
-    # TODO: This should, iderally, be handled by a "coords" dict-like
-    for name, time_arr in (("time2d", time2d), ("time3d", time3d)):
-        if len(time_arr) == 0:
-            continue
-        refs[f"{name}/.zattrs"] = json.dumps({**cfgrib.dataset.COORD_ATTRS["time"], "_ARRAY_DIMENSIONS": [name]})
-        refs[f"{name}/.zarray"] = json.dumps(
-            {
-                "chunks": [time_arr.size],
-                "compressor": None,
-                "dtype": time_arr.dtype.str,
-                "fill_value": 0,
-                "filters": [],
-                "order": "C",
-                "shape": [time_arr.size],
-                "zarr_format": 2,
-            }
-        )
-        refs[f"{name}/0"] = "base64:" + base64.b64encode(bytes(time_arr)).decode("ascii")
+def inspect_grib_indices(messages, magician):
+    coords_by_key = defaultdict(lambda: tuple(set() for _ in magician.dimkeys))
+    size_by_key = defaultdict(set)
+    attrs_by_key = {}
+    dtype_by_key = {}
+
+    for msg in messages:
+        varkey, coords = magician.m2key(msg)
+        for existing, new in zip(coords_by_key[varkey], coords):
+            existing.add(new)
+        size_by_key[varkey].add(msg["array"]["shape"][0])
+        attrs_by_key[varkey] = {k: v for k, v in msg["attrs"].items()
+                                if v is not None and v not in {"undef", "unknown"}}
+        dtype_by_key[varkey] = msg["array"]["dtype"]
+        global_attrs = msg["globals"]
+
+    for k, v in size_by_key.items():
+        assert len(v) == 1, f"inconsistent shape of {k}"
+
+    size_by_key = {k: list(v)[0] for k, v in size_by_key.items()}
+
+    varinfo = {}
+    for varkey, coords in coords_by_key.items():
+        dims, dim_id, shape = map(tuple, zip(*((dim, i, len(coords))
+                                               for i, (dim, coords) in enumerate(zip(magician.dimkeys, coords))
+                                               if len(coords) != 1)))
+        info = {
+            "dims": dims,
+            "shape": shape,
+            "dim_id": dim_id,
+            "coords": tuple(coords_by_key[varkey][i] for i in dim_id),
+            "data_size": size_by_key[varkey],
+            "data_dim": "cell",
+            "dtype": dtype_by_key[varkey],
+            "attrs": attrs_by_key[varkey],
+        }
+        varinfo[varkey] = {
+            **info,
+            **magician.variable_hook(varkey, info),
+        }
+
+    coords = defaultdict(set)
+    for _, info in varinfo.items():
+        for dim, cs in zip(info["dims"], info["coords"]):
+            coords[dim] |= cs
+
+    coords = {k: list(sorted(c)) for k, c in coords.items()}
+
+    return global_attrs, coords, varinfo
+
+def build_refs(messages, global_attrs, coords, varinfo, magician):
+    coords_inv = {k: {v: i for i, v in enumerate(vs)} for k, vs in coords.items()}
+
+    refs = {}
+    for msg in messages:
+        key, coord = magician.m2key(msg)
+        info = varinfo[key]
+        cs = [coord[d] for d in info["dim_id"]]
+        chunk_id = ".".join(map(str, [coords_inv[d][c] for d, c in zip(info["dims"], cs)])) + ".0"
+        refs[info["name"] + "/" + chunk_id] = [msg["filename"], msg["_offset"], msg["_length"]]
+
+    for varkey, info in varinfo.items():
+        refs[info["name"] + "/.zattrs"] = json.dumps({**info["attrs"],
+                                                      "_ARRAY_DIMENSIONS": list(info["dims"]) + [info["data_dim"]]})
+        shape = [len(coords[dim]) for dim in info["dims"]] + [info["data_size"]]
+        chunks = [1 for _ in info["shape"]] + [info["data_size"]]
+        refs[info["name"] + "/.zarray"] = json.dumps({
+            "shape": shape,
+            "chunks": chunks,
+            "compressor": {"id": "gribscan.rawgrib"},
+            "dtype": info["dtype"],
+            "fill_value": info["attrs"].get("missingValue", 9999),
+            "filters": [],
+            "order": "C",
+            "zarr_format": 2,
+        })
+
+    for name, cs in coords.items():
+        cs = np.asarray(cs)
+        attrs, cs = magician.coords_hook(name, cs)
+        refs[f"{name}/.zattrs"] = json.dumps({**attrs, "_ARRAY_DIMENSIONS": [name]})
+        refs[f"{name}/.zarray"] = json.dumps({
+            "chunks": [cs.size],
+            "compressor": None,
+            "dtype": cs.dtype.str,
+            "fill_value": 0,
+            "filters": [],
+            "order": "C",
+            "shape": [cs.size],
+            "zarr_format": 2,
+        })
+        refs[f"{name}/0"] = "base64:" + base64.b64encode(bytes(cs)).decode("ascii")
 
     refs[".zgroup"] = json.dumps({"zarr_format": 2})
-    refs[".zattrs"] = json.dumps(global_attrs)
+    refs[".zattrs"] = json.dumps(magician.globals_hook(global_attrs))
 
-    res = {
+    return refs
+
+def compress_ref_keys(refs):
+    table = {f: f"f{i}" for i, f in enumerate(sorted(set(target[0] for target in refs.values() if isinstance(target, list))))}
+    refs = {k: ["{{u}}{{" + table[target[0]] + "}}"] + target[1:] if isinstance(target, list) else target
+            for k, target in refs.items()}
+    return refs, {v: k for k, v in table.items()}
+
+def grib_magic(filenames, magician=None, global_prefix=""):
+    if magician is None:
+        magician = Magician()
+
+    messages = [msg
+                for filename in filenames
+                for msg in parse_index(filename, magician.m2key)]
+
+    global_attrs, coords, varinfo = inspect_grib_indices(messages, magician)
+    refs = build_refs(messages, global_attrs, coords, varinfo, magician)
+    short_refs, table = compress_ref_keys(refs)
+    return {
         "version": 1,
         "templates": {
-           "u": "",  # defaults to plain filenames (can be updated externally)
-            **filename_templates,
+           "u": global_prefix,  # defaults to plain filenames (can be updated externally)
+            **table,
         },
-        "refs": refs
+        "refs": short_refs
     }
-
-    return res

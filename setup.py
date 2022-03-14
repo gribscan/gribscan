@@ -24,6 +24,7 @@ setup(
         ],
         "numcodecs.codecs": [
             "rawgrib=gribscan.rawgribcodec:RawGribCodec",
+            "gribscan.rawgrib=gribscan.rawgribcodec:RawGribCodec",
             "aec=gribscan.aeccodec:AECCodec",
         ]
     },

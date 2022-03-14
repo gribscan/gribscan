@@ -22,10 +22,7 @@ def build_dataset():
     parser.add_argument("output", metavar="refs.json", help="reference filesystem specification (JSON)")
     args = parser.parse_args()
 
-    metadata = gribscan.parse_indices(args.indices)
-    refs = gribscan.grib2kerchunk_refs(metadata)
-
-    refs["templates"]["u"] = Path(args.output).parent.resolve().as_posix() + "/"
+    refs = gribscan.grib_magic(args.indices, global_prefix=Path(args.output).parent.resolve().as_posix() + "/")
 
     with open(args.output, "w") as indexfile:
         json.dump(refs, indexfile)
