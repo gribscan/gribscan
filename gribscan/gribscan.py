@@ -9,6 +9,8 @@ import cfgrib
 import eccodes
 import numpy as np
 
+from .magician import Magician
+
 import logging
 
 logger = logging.getLogger("gribscan")
@@ -203,54 +205,12 @@ def parse_index(indexfile, m2key, duplicate="replace"):
                 index[tinfo] = meta
     return list(index.values())
 
-class MagicianBase:
-    def variable_hook(self, key, info):
-        ...
-
-    def globals_hook(self, global_attrs):
-        return global_attrs
-
-    def coords_hook(self, name, coords):
-        return {}, coords
-
-    def m2key(self, meta):
-        return tuple(meta[key] for key in self.varkeys), tuple(meta[key] for key in self.dimkeys)
-
-class Magician(MagicianBase):
-    varkeys = "param", "levtype"
-    dimkeys = "posix_time", "level"
-
-    def variable_hook(self, key, info):
-        param, levtype = key
-        name = param
-        dims = info["dims"]
-
-        if levtype == "generalVertical":
-            name = param + "half" if param == "zg" else param
-            dims = tuple("halflevel" if dim == "level" else dim for dim in dims)
-        if len(dims) > 1:
-            dims = tuple("time3D" if dim == "posix_time" else dim for dim in dims)
-        else:
-            dims = tuple("time" if dim == "posix_time" else dim for dim in dims)
-
-        return {
-            "dims": dims,
-            "name": name,
-        }
-
-    def coords_hook(self, name, coords):
-        if "time" in name:
-            attrs = {'units': 'seconds since 1970-01-01T00:00:00',
-                     'calendar': 'proleptic_gregorian'}
-        else:
-            attrs = {}
-        return attrs, coords
-
 def inspect_grib_indices(messages, magician):
     coords_by_key = defaultdict(lambda: tuple(set() for _ in magician.dimkeys))
     size_by_key = defaultdict(set)
     attrs_by_key = {}
     dtype_by_key = {}
+    global_attrs = {}
 
     for msg in messages:
         varkey, coords = magician.m2key(msg)
