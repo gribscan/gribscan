@@ -2,6 +2,7 @@ import itertools
 import json
 import base64
 import pathlib
+import uuid
 from collections import defaultdict
 
 import cfgrib
@@ -141,11 +142,16 @@ def get_time_offset(gribmessage):
 
 def scan_gribfile(filelike, **kwargs):
     for offset, size, data in _split_file(filelike):
-        m = cfgrib.cfmessage.CfMessage(eccodes.codes_new_from_message(data))
+        mid = eccodes.codes_new_from_message(data)
+        m = cfgrib.cfmessage.CfMessage(mid)
         t = eccodes.codes_get_native_type(m.codes_id, "values")
         s = eccodes.codes_get_size(m.codes_id, "values")
 
-        yield {"globals": {k: m[k] for k in cfgrib.dataset.GLOBAL_ATTRIBUTES_KEYS},
+        hgrid_uuid = uuid.UUID(eccodes.codes_get_string(mid, "uuidOfHGrid"))
+        yield {"globals": {
+                   **{k: m[k] for k in cfgrib.dataset.GLOBAL_ATTRIBUTES_KEYS},
+                   "uuidOfHGrid": str(hgrid_uuid),
+               },
                "attrs": {k: m.get(k, None) for k in cfgrib.dataset.DATA_ATTRIBUTES_KEYS + cfgrib.dataset.EXTRA_DATA_ATTRIBUTES_KEYS},
                "posix_time": m["time"] + get_time_offset(m),
                "domain": m["globalDomain"],
