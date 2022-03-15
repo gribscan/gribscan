@@ -155,6 +155,10 @@ def scan_gribfile(filelike, **kwargs):
                    "uuidOfHGrid": str(hgrid_uuid),
                },
                "attrs": {k: m.get(k, None) for k in cfgrib.dataset.DATA_ATTRIBUTES_KEYS + cfgrib.dataset.EXTRA_DATA_ATTRIBUTES_KEYS},
+               "parameter_code": {
+                   k: m.get(k, None)
+                   for k in ["discipline", "parameterCategory", "parameterNumber"]
+                },
                "posix_time": m["time"] + get_time_offset(m),
                "domain": m["globalDomain"],
                "time": f"{m['hour']:02d}{m['minute']:02d}",
