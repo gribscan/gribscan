@@ -19,7 +19,7 @@ def create_index():
 def build_dataset():
     parser = argparse.ArgumentParser()
     parser.add_argument("indices", metavar="GRIB.index", help="source index files (JSONLines)", nargs="+")
-    parser.add_argument("output", metavar="refs.json", help="reference filesystem specification (JSON)")
+    parser.add_argument("-o", "--output", metavar="refs.json", default="refs.json", help="reference filesystem specification (JSON)", type=str)
     args = parser.parse_args()
 
     refs = gribscan.grib_magic(args.indices, global_prefix=Path(args.output).parent.resolve().as_posix() + "/")
