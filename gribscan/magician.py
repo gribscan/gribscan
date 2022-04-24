@@ -34,10 +34,9 @@ class Magician(MagicianBase):
         if levtype == "generalVertical":
             name = param + "half" if param == "zg" else param
             dims = tuple("halflevel" if dim == "level" else dim for dim in dims)
-        if len(dims) > 1:
-            dims = tuple("time3D" if dim == "posix_time" else dim for dim in dims)
-        else:
-            dims = tuple("time" if dim == "posix_time" else dim for dim in dims)
+        if levtype == "generalVerticalLayer":
+            dims = tuple("fulllevel" if dim == "level" else dim for dim in dims)
+        dims = tuple("time" if dim == "posix_time" else dim for dim in dims)
 
         return {
             "dims": dims,
