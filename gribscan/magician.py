@@ -11,6 +11,9 @@ class MagicianBase:
     def m2key(self, meta):
         return tuple(meta[key] for key in self.varkeys), tuple(meta[key] for key in self.dimkeys)
 
+    def m2dataset(self, meta):
+        return "atm3d" if meta["attrs"]["typeOfLevel"].startswith("generalVertical") else "atm2d"
+
 class Magician(MagicianBase):
     varkeys = "param", "levtype"
     dimkeys = "posix_time", "level"

@@ -322,14 +322,22 @@ def grib_magic(filenames, magician=None, global_prefix=""):
                 for filename in filenames
                 for msg in parse_index(filename, magician.m2key)]
 
-    global_attrs, coords, varinfo = inspect_grib_indices(messages, magician)
-    refs = build_refs(messages, global_attrs, coords, varinfo, magician)
-    short_refs, table = compress_ref_keys(refs)
-    return {
-        "version": 1,
-        "templates": {
-           "u": global_prefix,  # defaults to plain filenames (can be updated externally)
-            **table,
-        },
-        "refs": short_refs
-    }
+    messages_by_dataset = defaultdict(list)
+    for message in messages:
+        messages_by_dataset[magician.m2dataset(message)].append(message)
+
+    refs_by_dataset = {}
+    for dataset, messages in messages_by_dataset.items():
+        global_attrs, coords, varinfo = inspect_grib_indices(messages, magician)
+        refs = build_refs(messages, global_attrs, coords, varinfo, magician)
+        short_refs, table = compress_ref_keys(refs)
+        refs_by_dataset[dataset] = {
+            "version": 1,
+            "templates": {
+               "u": global_prefix,  # defaults to plain filenames (can be updated externally)
+                **table,
+            },
+            "refs": short_refs
+        }
+
+    return refs_by_dataset
