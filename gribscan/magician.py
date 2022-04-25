@@ -11,6 +11,9 @@ class MagicianBase:
     def m2key(self, meta):
         return tuple(meta[key] for key in self.varkeys), tuple(meta[key] for key in self.dimkeys)
 
+    def m2dataset(self, meta):
+        return "atm3d" if meta["attrs"]["typeOfLevel"].startswith("generalVertical") else "atm2d"
+
 class Magician(MagicianBase):
     varkeys = "param", "levtype"
     dimkeys = "posix_time", "level"
@@ -31,10 +34,9 @@ class Magician(MagicianBase):
         if levtype == "generalVertical":
             name = param + "half" if param == "zg" else param
             dims = tuple("halflevel" if dim == "level" else dim for dim in dims)
-        if len(dims) > 1:
-            dims = tuple("time3D" if dim == "posix_time" else dim for dim in dims)
-        else:
-            dims = tuple("time" if dim == "posix_time" else dim for dim in dims)
+        if levtype == "generalVerticalLayer":
+            dims = tuple("fulllevel" if dim == "level" else dim for dim in dims)
+        dims = tuple("time" if dim == "posix_time" else dim for dim in dims)
 
         return {
             "dims": dims,
