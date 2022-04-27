@@ -30,13 +30,21 @@ def _split_file(f, skip=0):
     while f.tell() < size:
         logger.debug(f"extract part {part + 1}")
         start = f.tell()
-        f.seek(12, 1)
-        part_size = int.from_bytes(f.read(4), "big")
+        indicator = f.read(16)
+
+        grib_edition = indicator[7]
+        if grib_edition == 1:
+            part_size = int.from_bytes(indicator[4:7], "big")
+        elif grib_edition == 2:
+            part_size = int.from_bytes(indicator[8:16], "big")
+        else:
+            raise ValueError(f"unknown grib edition: {grib_edition}")
+
         f.seek(start)
         data = f.read(part_size)
         assert data[:4] == b"GRIB"
         assert data[-4:] == b"7777"
-        yield start, part_size, data
+        yield start, part_size, grib_edition, data
         part += 1
         if skip and part > skip:
             break
@@ -143,7 +151,7 @@ def get_time_offset(gribmessage):
 
 
 def scan_gribfile(filelike, **kwargs):
-    for offset, size, data in _split_file(filelike):
+    for offset, size, grib_edition, data in _split_file(filelike):
         mid = eccodes.codes_new_from_message(data)
         m = cfgrib.cfmessage.CfMessage(mid)
         t = eccodes.codes_get_native_type(m.codes_id, "values")
