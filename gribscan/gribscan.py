@@ -336,9 +336,9 @@ def build_refs(messages, global_attrs, coords, varinfo, magician):
 
     for name, cs in coords.items():
         cs = np.asarray(cs)
-        attrs, cs = magician.coords_hook(name, cs)
+        attrs, cs, array_meta = magician.coords_hook(name, cs)
         refs[f"{name}/.zattrs"] = json.dumps({**attrs, "_ARRAY_DIMENSIONS": [name]})
-        refs[f"{name}/.zarray"] = json.dumps({
+        refs[f"{name}/.zarray"] = json.dumps({**{
             "chunks": [cs.size],
             "compressor": None,
             "dtype": cs.dtype.str,
@@ -347,6 +347,8 @@ def build_refs(messages, global_attrs, coords, varinfo, magician):
             "order": "C",
             "shape": [cs.size],
             "zarr_format": 2,
+        },
+            **array_meta,
         })
         refs[f"{name}/0"] = "base64:" + base64.b64encode(bytes(cs)).decode("ascii")
 
