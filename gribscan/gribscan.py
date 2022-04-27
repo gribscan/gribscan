@@ -300,7 +300,10 @@ def inspect_grib_indices(messages, magician):
         for dim, cs in zip(info["dims"], info["coords"]):
             coords[dim] |= cs
 
-    coords = {k: list(sorted(c)) for k, c in coords.items()}
+    coords = {
+        **{k: list(sorted(c)) for k, c in coords.items()},
+        **magician.extra_coords(varinfo),
+    }
 
     return global_attrs, coords, varinfo
 

@@ -14,6 +14,10 @@ class MagicianBase:
     def m2dataset(self, meta):
         return "atm3d" if meta["attrs"]["typeOfLevel"].startswith("generalVertical") else "atm2d"
 
+    def extra_coords(self, varinfo):
+        return {}
+
+
 class Magician(MagicianBase):
     varkeys = "param", "levtype"
     dimkeys = "posix_time", "level"
