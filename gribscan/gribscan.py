@@ -82,6 +82,7 @@ EXTRA_PARAMETERS = [
     "lengthOfTimeRange",
     "indicatorOfUnitForTimeRange",
     "productDefinitionTemplateNumber",
+    "N",
 ]
 
 production_template_numbers = {
@@ -252,6 +253,7 @@ def inspect_grib_indices(messages, magician):
     coords_by_key = defaultdict(lambda: tuple(set() for _ in magician.dimkeys))
     size_by_key = defaultdict(set)
     attrs_by_key = {}
+    extra_by_key = {}
     dtype_by_key = {}
     global_attrs = {}
 
@@ -261,6 +263,8 @@ def inspect_grib_indices(messages, magician):
             existing.add(new)
         size_by_key[varkey].add(msg["array"]["shape"][0])
         attrs_by_key[varkey] = {k: v for k, v in msg["attrs"].items()
+                                if v is not None and v not in {"undef", "unknown"}}
+        extra_by_key[varkey] = {k: v for k, v in msg["extra"].items()
                                 if v is not None and v not in {"undef", "unknown"}}
         dtype_by_key[varkey] = msg["array"]["dtype"]
         global_attrs = msg["globals"]
@@ -284,6 +288,7 @@ def inspect_grib_indices(messages, magician):
             "data_dims": ["cell"],
             "dtype": dtype_by_key[varkey],
             "attrs": attrs_by_key[varkey],
+            "extra": extra_by_key[varkey],
         }
         varinfo[varkey] = {
             **info,
