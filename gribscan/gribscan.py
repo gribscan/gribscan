@@ -15,6 +15,23 @@ import logging
 
 logger = logging.getLogger("gribscan")
 
+def find_stream(f, needle, buffersize=1024*1024):
+    keep_going = True
+    while keep_going:
+        start = f.tell()
+        buf = f.read(buffersize)
+        if len(buf) < buffersize:
+            keep_going = False
+        try:
+            idx = buf.index(needle)
+        except ValueError:
+            f.seek(-len(needle), 1)
+            continue
+        else:
+            pos = start + idx
+            f.seek(pos)
+            return pos
+
 def _split_file(f, skip=0):
     """
     splits a gribfile into individual messages
@@ -31,6 +48,13 @@ def _split_file(f, skip=0):
         logger.debug(f"extract part {part + 1}")
         start = f.tell()
         indicator = f.read(16)
+        if indicator[:4] != b"GRIB":
+            logger.info(f"non-consecutive messages, searching for part {part + 1}")
+            f.seek(start)
+            start = find_stream(f, b"GRIB")
+            indicator = f.read(16)
+        if len(indicator) < 16:
+            return
 
         grib_edition = indicator[7]
         if grib_edition == 1:
@@ -42,9 +66,12 @@ def _split_file(f, skip=0):
 
         f.seek(start)
         data = f.read(part_size)
-        assert data[:4] == b"GRIB"
-        assert data[-4:] == b"7777"
-        yield start, part_size, grib_edition, data
+        if data[-4:] != b"7777":
+            logger.warning(f"part {part + 1} is broken")
+            f.seek(start + 1)
+        else:
+            yield start, part_size, grib_edition, data
+
         part += 1
         if skip and part > skip:
             break
