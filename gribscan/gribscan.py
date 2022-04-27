@@ -280,8 +280,8 @@ def inspect_grib_indices(messages, magician):
             "shape": shape,
             "dim_id": dim_id,
             "coords": tuple(coords_by_key[varkey][i] for i in dim_id),
-            "data_size": size_by_key[varkey],
-            "data_dim": "cell",
+            "data_shape": [size_by_key[varkey]],
+            "data_dims": ["cell"],
             "dtype": dtype_by_key[varkey],
             "attrs": attrs_by_key[varkey],
         }
@@ -307,14 +307,14 @@ def build_refs(messages, global_attrs, coords, varinfo, magician):
         key, coord = magician.m2key(msg)
         info = varinfo[key]
         cs = [coord[d] for d in info["dim_id"]]
-        chunk_id = ".".join(map(str, [coords_inv[d][c] for d, c in zip(info["dims"], cs)])) + ".0"
+        chunk_id = ".".join(map(str, [coords_inv[d][c] for d, c in zip(info["dims"], cs)])) + ".0" * len(info["data_dims"])
         refs[info["name"] + "/" + chunk_id] = [msg["filename"], msg["_offset"], msg["_length"]]
 
     for varkey, info in varinfo.items():
         refs[info["name"] + "/.zattrs"] = json.dumps({**info["attrs"],
-                                                      "_ARRAY_DIMENSIONS": list(info["dims"]) + [info["data_dim"]]})
-        shape = [len(coords[dim]) for dim in info["dims"]] + [info["data_size"]]
-        chunks = [1 for _ in info["shape"]] + [info["data_size"]]
+                                                      "_ARRAY_DIMENSIONS": list(info["dims"]) + list(info["data_dims"])})
+        shape = [len(coords[dim]) for dim in info["dims"]] + list(info["data_shape"])
+        chunks = [1 for _ in info["shape"]] + list(info["data_shape"])
         refs[info["name"] + "/.zarray"] = json.dumps({
             "shape": shape,
             "chunks": chunks,
