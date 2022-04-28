@@ -11,13 +11,13 @@ This repository is still experimental. The code is not yet tested for many kinds
 `gribscan` is on [PyPI](http://pypi.org/project/gribscan/), you can install the recent released version using
 
 ```bash
-pip install gribscan
+python -m pip install gribscan
 ```
 
 if you are interested in the recent development version, please clone the repository and install the package in development mode:
 
 ```bash
-pip install -e <path to your clone>
+python -m pip install -e <path to your clone>
 ```
 
 ## command line usage
