@@ -1,10 +1,10 @@
 # gribscan
 
-Tools to scan gribfiles and create zarr-compatible indices.
+Tools to scan GRIB files and create zarr-compatible indices.
 
 ## warning
 
-This repository is still experimental. The code is not yet tested for many kinds of files. It will likely not destroy your files, as it only accesses gribfiles in read-mode, but it may skip some information or may crash. Please file an issue if you discover something is missing.
+This repository is still experimental. The code is not yet tested for many kinds of files. It will likely not destroy your files, as it only accesses GRIB files in read-mode, but it may skip some information or may crash. Please file an issue if you discover something is missing.
 
 ## installing
 
@@ -24,14 +24,14 @@ pip install -e <path to your clone>
 
 `gribscan` comes with two executables:
 
-* `gribscan-index` for building indices of gribfiles
+* `gribscan-index` for building indices of GRIB files
 * `gribscan-build` for building a dataset from indices
 
 ### building indices
 
-Gribscan will create [jsonlines](https://jsonlines.org/)-based `.index`-files next to the input GRIB files. The format is based on the [ECMWF OpenData index format](https://confluence.ecmwf.int/display/UDOC/ECMWF+Open+Data+-+Real+Time#ECMWFOpenDataRealTime-IndexFilesIndexfiles) but contains a lot more entries.
+`gribscan` will create [jsonlines](https://jsonlines.org/)-based `.index`-files next to the input GRIB files. The format is based on the [ECMWF OpenData index format](https://confluence.ecmwf.int/display/UDOC/ECMWF+Open+Data+-+Real+Time#ECMWFOpenDataRealTime-IndexFilesIndexfiles) but contains a lot more entries.
 
-You can pass in multiple grib files at once and specify the number of parallel processes (`-n`).
+You can pass in multiple GRIB files at once and specify the number of parallel processes (`-n`).
 
 ```bash
 gribscan-index *.grb2 -n 16
@@ -42,7 +42,7 @@ gribscan-index *.grb2 -n 16
 
 ### building a dataset
 
-After all the index files have been created, a common dataset can be assembled based on the information in the index file. The assembled dataset will be written outin a [fsspec ReferenceFileSystem](https://filesystem-spec.readthedocs.io/en/latest/api.html#fsspec.implementations.reference.ReferenceFileSystem) compatible JSON file, which internally builds a [zarr](https://zarr.readthedocs.io/en/stable/index.html)-group structure.
+After all the index files have been created, a common dataset can be assembled based on the information in the index files. The assembled dataset will be written outin a [fsspec ReferenceFileSystem](https://filesystem-spec.readthedocs.io/en/latest/api.html#fsspec.implementations.reference.ReferenceFileSystem) compatible JSON file, which internally builds a [zarr](https://zarr.readthedocs.io/en/stable/index.html)-group structure.
 
 ```bash
 gribscan-build *.index -o dataset.json --prefix <path prefix to referenced grib files>
@@ -68,11 +68,11 @@ Note that `gribscan` **must** be imported in order to register `gribscan.rawgrib
 
 ## library usage
 
-You might also be interested in using `gribscan` as a Python-library, which also enables further usecases.
+You might be interested in using `gribscan` as a Python-library, which enables further usecases.
 
-### buulding indices
+### building indices
 
-You can build an index from a single grib file (as explained above) using:
+You can build an index from a single GRIB file (as explained above) using:
 
 ```python
 import gribscan
