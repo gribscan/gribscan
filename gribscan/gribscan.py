@@ -188,7 +188,7 @@ def scan_gribfile(filelike, **kwargs):
         global_attrs = {k: m[k] for k in cfgrib.dataset.GLOBAL_ATTRIBUTES_KEYS}
         for uuid_key in ["uuidOfHGrid", "uuidOfVGrid"]:
             try:
-                global_attrs[uuid_key] = uuid.UUID(eccodes.codes_get_string(mid, uuid_key))
+                global_attrs[uuid_key] = str(uuid.UUID(eccodes.codes_get_string(mid, uuid_key)))
             except eccodes.KeyValueNotFoundError:
                 pass
 
