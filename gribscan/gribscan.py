@@ -15,6 +15,23 @@ import logging
 
 logger = logging.getLogger("gribscan")
 
+def find_stream(f, needle, buffersize=1024*1024):
+    keep_going = True
+    while keep_going:
+        start = f.tell()
+        buf = f.read(buffersize)
+        if len(buf) < buffersize:
+            keep_going = False
+        try:
+            idx = buf.index(needle)
+        except ValueError:
+            f.seek(-len(needle), 1)
+            continue
+        else:
+            pos = start + idx
+            f.seek(pos)
+            return pos
+
 def _split_file(f, skip=0):
     """
     splits a gribfile into individual messages
@@ -30,13 +47,31 @@ def _split_file(f, skip=0):
     while f.tell() < size:
         logger.debug(f"extract part {part + 1}")
         start = f.tell()
-        f.seek(12, 1)
-        part_size = int.from_bytes(f.read(4), "big")
+        indicator = f.read(16)
+        if indicator[:4] != b"GRIB":
+            logger.info(f"non-consecutive messages, searching for part {part + 1}")
+            f.seek(start)
+            start = find_stream(f, b"GRIB")
+            indicator = f.read(16)
+        if len(indicator) < 16:
+            return
+
+        grib_edition = indicator[7]
+        if grib_edition == 1:
+            part_size = int.from_bytes(indicator[4:7], "big")
+        elif grib_edition == 2:
+            part_size = int.from_bytes(indicator[8:16], "big")
+        else:
+            raise ValueError(f"unknown grib edition: {grib_edition}")
+
         f.seek(start)
         data = f.read(part_size)
-        assert data[:4] == b"GRIB"
-        assert data[-4:] == b"7777"
-        yield start, part_size, data
+        if data[-4:] != b"7777":
+            logger.warning(f"part {part + 1} is broken")
+            f.seek(start + 1)
+        else:
+            yield start, part_size, grib_edition, data
+
         part += 1
         if skip and part > skip:
             break
@@ -47,6 +82,7 @@ EXTRA_PARAMETERS = [
     "lengthOfTimeRange",
     "indicatorOfUnitForTimeRange",
     "productDefinitionTemplateNumber",
+    "N",
 ]
 
 production_template_numbers = {
@@ -143,17 +179,21 @@ def get_time_offset(gribmessage):
 
 
 def scan_gribfile(filelike, **kwargs):
-    for offset, size, data in _split_file(filelike):
+    for offset, size, grib_edition, data in _split_file(filelike):
         mid = eccodes.codes_new_from_message(data)
         m = cfgrib.cfmessage.CfMessage(mid)
         t = eccodes.codes_get_native_type(m.codes_id, "values")
         s = eccodes.codes_get_size(m.codes_id, "values")
 
-        hgrid_uuid = uuid.UUID(eccodes.codes_get_string(mid, "uuidOfHGrid"))
-        yield {"globals": {
-                   **{k: m[k] for k in cfgrib.dataset.GLOBAL_ATTRIBUTES_KEYS},
-                   "uuidOfHGrid": str(hgrid_uuid),
-               },
+        global_attrs = {k: m[k] for k in cfgrib.dataset.GLOBAL_ATTRIBUTES_KEYS}
+        for uuid_key in ["uuidOfHGrid", "uuidOfVGrid"]:
+            try:
+                global_attrs[uuid_key] = str(uuid.UUID(eccodes.codes_get_string(mid, uuid_key)))
+            except eccodes.KeyValueNotFoundError:
+                pass
+
+            yield {
+               "globals": global_attrs,
                "attrs": {k: m.get(k, None) for k in cfgrib.dataset.DATA_ATTRIBUTES_KEYS + cfgrib.dataset.EXTRA_DATA_ATTRIBUTES_KEYS},
                "parameter_code": {
                    k: m.get(k, None)
@@ -213,6 +253,7 @@ def inspect_grib_indices(messages, magician):
     coords_by_key = defaultdict(lambda: tuple(set() for _ in magician.dimkeys))
     size_by_key = defaultdict(set)
     attrs_by_key = {}
+    extra_by_key = {}
     dtype_by_key = {}
     global_attrs = {}
 
@@ -222,6 +263,8 @@ def inspect_grib_indices(messages, magician):
             existing.add(new)
         size_by_key[varkey].add(msg["array"]["shape"][0])
         attrs_by_key[varkey] = {k: v for k, v in msg["attrs"].items()
+                                if v is not None and v not in {"undef", "unknown"}}
+        extra_by_key[varkey] = {k: v for k, v in msg["extra"].items()
                                 if v is not None and v not in {"undef", "unknown"}}
         dtype_by_key[varkey] = msg["array"]["dtype"]
         global_attrs = msg["globals"]
@@ -241,10 +284,11 @@ def inspect_grib_indices(messages, magician):
             "shape": shape,
             "dim_id": dim_id,
             "coords": tuple(coords_by_key[varkey][i] for i in dim_id),
-            "data_size": size_by_key[varkey],
-            "data_dim": "cell",
+            "data_shape": [size_by_key[varkey]],
+            "data_dims": ["cell"],
             "dtype": dtype_by_key[varkey],
             "attrs": attrs_by_key[varkey],
+            "extra": extra_by_key[varkey],
         }
         varinfo[varkey] = {
             **info,
@@ -256,7 +300,10 @@ def inspect_grib_indices(messages, magician):
         for dim, cs in zip(info["dims"], info["coords"]):
             coords[dim] |= cs
 
-    coords = {k: list(sorted(c)) for k, c in coords.items()}
+    coords = {
+        **{k: list(sorted(c)) for k, c in coords.items()},
+        **magician.extra_coords(varinfo),
+    }
 
     return global_attrs, coords, varinfo
 
@@ -268,14 +315,14 @@ def build_refs(messages, global_attrs, coords, varinfo, magician):
         key, coord = magician.m2key(msg)
         info = varinfo[key]
         cs = [coord[d] for d in info["dim_id"]]
-        chunk_id = ".".join(map(str, [coords_inv[d][c] for d, c in zip(info["dims"], cs)])) + ".0"
+        chunk_id = ".".join(map(str, [coords_inv[d][c] for d, c in zip(info["dims"], cs)])) + ".0" * len(info["data_dims"])
         refs[info["name"] + "/" + chunk_id] = [msg["filename"], msg["_offset"], msg["_length"]]
 
     for varkey, info in varinfo.items():
         refs[info["name"] + "/.zattrs"] = json.dumps({**info["attrs"],
-                                                      "_ARRAY_DIMENSIONS": list(info["dims"]) + [info["data_dim"]]})
-        shape = [len(coords[dim]) for dim in info["dims"]] + [info["data_size"]]
-        chunks = [1 for _ in info["shape"]] + [info["data_size"]]
+                                                      "_ARRAY_DIMENSIONS": list(info["dims"]) + list(info["data_dims"])})
+        shape = [len(coords[dim]) for dim in info["dims"]] + list(info["data_shape"])
+        chunks = [1 for _ in info["shape"]] + list(info["data_shape"])
         refs[info["name"] + "/.zarray"] = json.dumps({
             "shape": shape,
             "chunks": chunks,
@@ -289,9 +336,9 @@ def build_refs(messages, global_attrs, coords, varinfo, magician):
 
     for name, cs in coords.items():
         cs = np.asarray(cs)
-        attrs, cs = magician.coords_hook(name, cs)
+        attrs, cs, array_meta = magician.coords_hook(name, cs)
         refs[f"{name}/.zattrs"] = json.dumps({**attrs, "_ARRAY_DIMENSIONS": [name]})
-        refs[f"{name}/.zarray"] = json.dumps({
+        refs[f"{name}/.zarray"] = json.dumps({**{
             "chunks": [cs.size],
             "compressor": None,
             "dtype": cs.dtype.str,
@@ -300,6 +347,8 @@ def build_refs(messages, global_attrs, coords, varinfo, magician):
             "order": "C",
             "shape": [cs.size],
             "zarr_format": 2,
+        },
+            **array_meta,
         })
         refs[f"{name}/0"] = "base64:" + base64.b64encode(bytes(cs)).decode("ascii")
 

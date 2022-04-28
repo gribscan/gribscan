@@ -6,13 +6,17 @@ class MagicianBase:
         return global_attrs
 
     def coords_hook(self, name, coords):
-        return {}, coords
+        return {}, coords, {}
 
     def m2key(self, meta):
         return tuple(meta[key] for key in self.varkeys), tuple(meta[key] for key in self.dimkeys)
 
     def m2dataset(self, meta):
         return "atm3d" if meta["attrs"]["typeOfLevel"].startswith("generalVertical") else "atm2d"
+
+    def extra_coords(self, varinfo):
+        return {}
+
 
 class Magician(MagicianBase):
     varkeys = "param", "levtype"
@@ -49,5 +53,5 @@ class Magician(MagicianBase):
                      'calendar': 'proleptic_gregorian'}
         else:
             attrs = {}
-        return attrs, coords
+        return attrs, coords, {}
 
