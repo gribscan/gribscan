@@ -8,7 +8,7 @@ This repository is still experimental. The code is not yet tested for many kinds
 
 ## installing
 
-`gribscan` is on pypi, you can install the recent released version using
+`gribscan` is on [PyPI](http://pypi.org/project/gribscan/), you can install the recent released version using
 
 ```bash
 pip install gribscan
