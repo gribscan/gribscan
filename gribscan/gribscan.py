@@ -32,6 +32,47 @@ def find_stream(f, needle, buffersize=1024*1024):
             f.seek(pos)
             return pos
 
+def detect_large_grib1_special_coding(f, part_size):
+    """
+    This is from eccodes src/grib_io.c /* Special coding */ (couldn't find it in the specs...)
+    """
+    if part_size & 0x800000:  # this is a large grib, hacks are coming...
+        start = f.tell()
+        data = f.read(part_size)
+        f.seek(start)
+        assert data[7] == 1, "large grib mode only exists in Grib 1"
+
+        s0len = 8
+        s1start = s0len
+        s1len = int.from_bytes(data[s1start:s1start+3], "big")
+        flags = data[s1start+7]
+        has_s2 = bool(flags & (1<<7))
+        has_s3 = bool(flags & (1<<6))
+
+        s2start = s1start + s1len
+        if has_s2:
+            s2len = int.from_bytes(data[s2start:s2start+3], "big")
+        else:
+            s2len = 0
+
+        s3start = s2start + s2len
+        if has_s3:
+            s3len = int.from_bytes(data[s3start:s3start+3], "big")
+        else:
+            s3len = 0
+
+        s4start = s3start + s3len
+
+        s4len = int.from_bytes(data[s4start:s4start+3], "big")
+        if s4len < 120:
+            return (part_size & 0x7fffff) * 120 - s4len + 4
+        else:
+            return part_size
+
+    else:  # normal grib
+        return part_size
+
+
 def _split_file(f, skip=0):
     """
     splits a gribfile into individual messages
@@ -57,14 +98,17 @@ def _split_file(f, skip=0):
             return
 
         grib_edition = indicator[7]
+
+        f.seek(start)
+
         if grib_edition == 1:
             part_size = int.from_bytes(indicator[4:7], "big")
+            part_size = detect_large_grib1_special_coding(f, part_size)
         elif grib_edition == 2:
             part_size = int.from_bytes(indicator[8:16], "big")
         else:
             raise ValueError(f"unknown grib edition: {grib_edition}")
 
-        f.seek(start)
         data = f.read(part_size)
         if data[-4:] != b"7777":
             logger.warning(f"part {part + 1} is broken")
