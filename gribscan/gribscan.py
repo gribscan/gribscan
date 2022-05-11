@@ -320,9 +320,15 @@ def inspect_grib_indices(messages, magician):
 
     varinfo = {}
     for varkey, coords in coords_by_key.items():
-        dims, dim_id, shape = map(tuple, zip(*((dim, i, len(coords))
-                                               for i, (dim, coords) in enumerate(zip(magician.dimkeys, coords))
-                                               if len(coords) != 1)))
+        if all(len(c) == 1 for c in coords):
+            dims = ()
+            dim_id = ()
+            shape = ()
+        else:    
+            dims, dim_id, shape = map(tuple, zip(*((dim, i, len(coords))
+                                                   for i, (dim, coords) in enumerate(zip(magician.dimkeys, coords))
+                                                   if len(coords) != 1)))
+        
         info = {
             "dims": dims,
             "shape": shape,
