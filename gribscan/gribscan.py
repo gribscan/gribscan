@@ -192,32 +192,32 @@ def scan_gribfile(filelike, **kwargs):
             except eccodes.KeyValueNotFoundError:
                 pass
 
-            yield {
-               "globals": global_attrs,
-               "attrs": {k: m.get(k, None) for k in cfgrib.dataset.DATA_ATTRIBUTES_KEYS + cfgrib.dataset.EXTRA_DATA_ATTRIBUTES_KEYS},
-               "parameter_code": {
-                   k: m.get(k, None)
-                   for k in ["discipline", "parameterCategory", "parameterNumber"]
-                },
-               "posix_time": m["time"] + get_time_offset(m),
-               "domain": m["globalDomain"],
-               "time": f"{m['hour']:02d}{m['minute']:02d}",
-               "date": f"{m['year']:04d}{m['month']:02d}{m['day']:02d}",
-               "levtype": m.get("typeOfLevel", None),
-               "level": m.get("level", None),
-               "param": m.get("shortName", None),
-               "type": m.get("dataType", None),
-               "referenceTime": m["time"],
-               "step": m["step"],
-               "_offset": offset,
-               "_length": size,
-               "array": {
-                   "dtype": np.dtype(t).str,
-                   "shape": [s],
-                },
-               "extra": {k: m.get(k, None) for k in EXTRA_PARAMETERS},
-               **kwargs
-               }
+        yield {
+           "globals": global_attrs,
+           "attrs": {k: m.get(k, None) for k in cfgrib.dataset.DATA_ATTRIBUTES_KEYS + cfgrib.dataset.EXTRA_DATA_ATTRIBUTES_KEYS},
+           "parameter_code": {
+               k: m.get(k, None)
+               for k in ["discipline", "parameterCategory", "parameterNumber"]
+            },
+           "posix_time": m["time"] + get_time_offset(m),
+           "domain": m["globalDomain"],
+           "time": f"{m['hour']:02d}{m['minute']:02d}",
+           "date": f"{m['year']:04d}{m['month']:02d}{m['day']:02d}",
+           "levtype": m.get("typeOfLevel", None),
+           "level": m.get("level", None),
+           "param": m.get("shortName", None),
+           "type": m.get("dataType", None),
+           "referenceTime": m["time"],
+           "step": m["step"],
+           "_offset": offset,
+           "_length": size,
+           "array": {
+               "dtype": np.dtype(t).str,
+               "shape": [s],
+            },
+           "extra": {k: m.get(k, None) for k in EXTRA_PARAMETERS},
+           **kwargs
+           }
 
 
 def write_index(gribfile, idxfile=None):
