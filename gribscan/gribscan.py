@@ -127,6 +127,9 @@ EXTRA_PARAMETERS = [
     "indicatorOfUnitForTimeRange",
     "productDefinitionTemplateNumber",
     "N",
+    "timeRangeIndicator",
+    "P1",
+    "P2",
 ]
 
 production_template_numbers = {
@@ -209,16 +212,24 @@ time_range_units = {
     #255 Missing
 }
 
+
 def get_time_offset(gribmessage):
     offset = 0  # np.timedelta64(0, "s")
-    try:
-        options = production_template_numbers[int(gribmessage["productDefinitionTemplateNumber"])]
-    except KeyError:
-        return offset
-    if options["forcastTime"]:
+    edition = int(gribmessage["editionNumber"])
+    if edition == 1:
+        timeRangeIndicator = int(gribmessage["timeRangeIndicator"])
+        assert timeRangeIndicator == 0, f"don't know how to handle timeRangeIndicator {timeRangeIndicator}"
         unit = time_range_units[int(gribmessage.get("indicatorOfUnitOfTimeRange", 255))]
-        offset += gribmessage.get("forecastTime", 0) * unit
-    # TODO: handling of time ranges, see cdo: libcdi/src/gribapi_utilities.c: gribMakeTimeString
+        offset += int(gribmessage["P1"]) * unit
+    else:
+        try:
+            options = production_template_numbers[int(gribmessage["productDefinitionTemplateNumber"])]
+        except KeyError:
+            return offset
+        if options["forcastTime"]:
+            unit = time_range_units[int(gribmessage.get("indicatorOfUnitOfTimeRange", 255))]
+            offset += gribmessage.get("forecastTime", 0) * unit
+        # TODO: handling of time ranges, see cdo: libcdi/src/gribapi_utilities.c: gribMakeTimeString
     return offset
 
 
