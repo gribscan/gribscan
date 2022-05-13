@@ -6,7 +6,7 @@ class MagicianBase:
         return global_attrs
 
     def coords_hook(self, name, coords):
-        return {}, coords, {}, [name]
+        return {}, coords, {}, [name], None
 
     def m2key(self, meta):
         return tuple(meta[key] for key in self.varkeys), tuple(meta[key] for key in self.dimkeys)
@@ -53,5 +53,5 @@ class Magician(MagicianBase):
                      'calendar': 'proleptic_gregorian'}
         else:
             attrs = {}
-        return attrs, coords, {}, [name]
+        return attrs, coords, {}, [name], None
 

@@ -409,11 +409,19 @@ def build_refs(messages, global_attrs, coords, varinfo, magician):
 
     for name, cs in coords.items():
         cs = np.asarray(cs)
-        attrs, cs, array_meta, dims = magician.coords_hook(name, cs)
+        attrs, cs, array_meta, dims, compressor = magician.coords_hook(name, cs)
+
+        if compressor is None:
+            compressor_id = None
+            data = bytes(cs)
+        else:
+            compressor_id = compressor.get_config()
+            data = bytes(compressor.encode(cs))
+
         refs[f"{name}/.zattrs"] = json.dumps({**attrs, "_ARRAY_DIMENSIONS": dims})
         refs[f"{name}/.zarray"] = json.dumps({**{
             "chunks": [cs.size],
-            "compressor": None,
+            "compressor": compressor_id,
             "dtype": cs.dtype.str,
             "fill_value": 0,
             "filters": [],
@@ -423,7 +431,7 @@ def build_refs(messages, global_attrs, coords, varinfo, magician):
         },
             **array_meta,
         })
-        refs[f"{name}/0"] = "base64:" + base64.b64encode(bytes(cs)).decode("ascii")
+        refs[f"{name}/0"] = "base64:" + base64.b64encode(data).decode("ascii")
 
     refs[".zgroup"] = json.dumps({"zarr_format": 2})
     refs[".zattrs"] = json.dumps(magician.globals_hook(global_attrs))
