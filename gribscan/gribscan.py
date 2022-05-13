@@ -409,8 +409,8 @@ def build_refs(messages, global_attrs, coords, varinfo, magician):
 
     for name, cs in coords.items():
         cs = np.asarray(cs)
-        attrs, cs, array_meta = magician.coords_hook(name, cs)
-        refs[f"{name}/.zattrs"] = json.dumps({**attrs, "_ARRAY_DIMENSIONS": [name]})
+        attrs, cs, array_meta, dims = magician.coords_hook(name, cs)
+        refs[f"{name}/.zattrs"] = json.dumps({**attrs, "_ARRAY_DIMENSIONS": dims})
         refs[f"{name}/.zarray"] = json.dumps({**{
             "chunks": [cs.size],
             "compressor": None,
