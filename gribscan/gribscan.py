@@ -233,6 +233,13 @@ def get_time_offset(gribmessage):
     return offset
 
 
+def arrays_to_list(o):
+    try:
+        return o.tolist()
+    except AttributeError:
+        return o
+
+
 def scan_gribfile(filelike, **kwargs):
     for offset, size, grib_edition, data in _split_file(filelike):
         mid = eccodes.codes_new_from_message(data)
@@ -270,7 +277,7 @@ def scan_gribfile(filelike, **kwargs):
                "dtype": np.dtype(t).str,
                "shape": [s],
             },
-           "extra": {k: m.get(k, None) for k in EXTRA_PARAMETERS},
+           "extra": {k: arrays_to_list(m.get(k, None)) for k in EXTRA_PARAMETERS},
            **kwargs
            }
 
@@ -304,6 +311,12 @@ def parse_index(indexfile, m2key, duplicate="replace"):
                 index[tinfo] = meta
     return list(index.values())
 
+def is_value(v):
+    if v is None or v == "undef" or v == "unknown":
+        return False
+    else:
+        return True
+
 def inspect_grib_indices(messages, magician):
     coords_by_key = defaultdict(lambda: tuple(set() for _ in magician.dimkeys))
     size_by_key = defaultdict(set)
@@ -317,10 +330,8 @@ def inspect_grib_indices(messages, magician):
         for existing, new in zip(coords_by_key[varkey], coords):
             existing.add(new)
         size_by_key[varkey].add(msg["array"]["shape"][0])
-        attrs_by_key[varkey] = {k: v for k, v in msg["attrs"].items()
-                                if v is not None and v not in {"undef", "unknown"}}
-        extra_by_key[varkey] = {k: v for k, v in msg["extra"].items()
-                                if v is not None and v not in {"undef", "unknown"}}
+        attrs_by_key[varkey] = {k: v for k, v in msg["attrs"].items() if is_value(v)}
+        extra_by_key[varkey] = {k: v for k, v in msg["extra"].items() if is_value(v)}
         dtype_by_key[varkey] = msg["array"]["dtype"]
         global_attrs = msg["globals"]
 
