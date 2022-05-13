@@ -277,7 +277,8 @@ def scan_gribfile(filelike, **kwargs):
                "dtype": np.dtype(t).str,
                "shape": [s],
             },
-           "extra": {k: arrays_to_list(m.get(k, None)) for k in EXTRA_PARAMETERS},
+           "extra": {k: arrays_to_list(m.get(k, None)) for k in (
+                EXTRA_PARAMETERS + cfgrib.dataset.GRID_TYPE_MAP.get(m["gridType"], []))},
            **kwargs
            }
 
