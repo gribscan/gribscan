@@ -10,7 +10,7 @@ To do so, there are a couple of methods which can be implemented and hook into t
 ## properties
 
 ### dimkeys
-`dimkeys` must be a tuple including all dimension names corresponding to the `dimension_key` return value of `m2key`.
+`dimkeys` is a tuple that specifies all dimension names that are used to construct the return value `dimension_key` by `m2key`.
 
 ## methods
 
