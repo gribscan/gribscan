@@ -2,7 +2,7 @@
 
 The dataset building process in gribscan is based on the idea, that each GRIB message should be
 placed somewhere into an imaginary multi-dimensional shelf, which is spanned by datasets, variables
-and coordinates. The Magician is a tool to customize the decisions required within that flow from grib messages to datasets.
+and coordinates. The Magician is a tool to customize the decisions required within that flow from GRIB messages to datasets.
 To do so, there are a couple of methods which can be implemented and hook into the flow:
 
 ![Magician dataflow](magician_dataflow.png)
@@ -20,7 +20,7 @@ def m2dataset(self, meta):
     return dataset_name
 ```
 
-`m2dataset` is run once per GRIB message and must determine into which dataset the message will go. The `meta` input is the full information from the grib index.
+`m2dataset` is run once per GRIB message and must determine into which dataset the message will go. The `meta` input is the full information from the GRIB index.
 Everything after is treated separately for each dataset.
 
 ### m2key
@@ -30,7 +30,7 @@ def m2key(self, meta):
     return variable_key, dimension_key
 ```
 
-`m2key` is run once per GRIB message in each dataset. It must return a two-element `tuple`, where the first is used to determine in which variable the message will end up and the second 
+`m2key` is run once per GRIB message in each dataset. It must return a two-element `tuple`, where the first is used to determine in which variable the message will end up and the second will determine the coordinates of the message, e.g. the corresponding timestamp and vertical level.
 
 ### variable_hook
 
