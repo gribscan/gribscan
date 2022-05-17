@@ -17,6 +17,9 @@ setup(
         "numcodecs",
         "numpy",
     ],
+    extras_require={
+        "dev": ["diagrams"],
+    },
     entry_points={
         "console_scripts": [
             "gribscan-index=gribscan.tools:create_index",
