@@ -89,4 +89,4 @@ magician = gribscan.Magician()
 gribscan.grib_magic(indexfiles, magician, global_prefix)
 ```
 
-The `magician` is a class which can customize how the dataset is assembled. You may want to define your own in order to design the resulting dataset according to your preferences. Please have a look at [`magician.py`](gribscan/magician.py) to see how a Magician would look like and check out the [magicians docs](magician.md).
+The `magician` is a class which can customize how the dataset is assembled. You may want to define your own in order to design the resulting dataset according to your preferences. Please have a look at magician.py to see how a Magician would look like and check out the [magicians docs](magician.md).
