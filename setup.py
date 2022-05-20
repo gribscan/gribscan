@@ -18,7 +18,6 @@ setup(
         "numpy",
     ],
     extras_require={
-        "dev": ["diagrams"],
         "docs": [
             "sphinx",
             "myst-parser",
