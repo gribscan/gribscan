@@ -1,3 +1,5 @@
+[![Documentation Status](https://readthedocs.org/projects/gribscan/badge/?version=latest)](https://gribscan.readthedocs.io/en/latest/?badge=latest)
+
 # gribscan
 
 Tools to scan GRIB files and create zarr-compatible indices.
