@@ -1,10 +1,10 @@
-# gribscan
+# getting started with gribscan
 
 Tools to scan GRIB files and create zarr-compatible indices.
 
-## warning
-
+```{warning}
 This repository is still experimental. The code is not yet tested for many kinds of files. It will likely not destroy your files, as it only accesses GRIB files in read-mode, but it may skip some information or may crash. Please file an issue if you discover something is missing.
+```
 
 ## installing
 
