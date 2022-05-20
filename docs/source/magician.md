@@ -5,7 +5,31 @@ placed somewhere into an imaginary multi-dimensional shelf, which is spanned by 
 and coordinates. The Magician is a tool to customize the decisions required within that flow from GRIB messages to datasets.
 To do so, there are a couple of methods which can be implemented and hook into the flow:
 
-![Magician dataflow](magician_dataflow.png)
+```{diagrams}
+from diagrams import Cluster
+from diagrams.programming.flowchart import Document, Decision, Database, ManualLoop, Action
+from sphinx_diagrams import SphinxDiagram
+
+with SphinxDiagram(title="magician dataflow"):
+    messages = [Document(f"message {i}") for i in range(1,4)]
+    
+    with Cluster("for each dataset"):
+        with Cluster("for each key"):
+            varhook = Action("variable_hook()")
+        with Cluster("for each coord"):
+            coordhook = Action("coord_hook()")
+        m2key = Decision("m2key()")
+        (m2key
+         >> Database("store by key")
+         >> varhook
+         >> Action("extra_coords()")
+         >> coordhook
+         >> Action("globals_hook()")
+         >> Document(f"references"))
+
+    messages >> Decision("m2dataset()") >> m2key
+
+```
 
 ## properties
 

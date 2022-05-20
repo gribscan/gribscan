@@ -18,7 +18,12 @@ setup(
         "numpy",
     ],
     extras_require={
-        "dev": ["diagrams"],
+        "docs": [
+            "sphinx",
+            "myst-parser",
+            "sphinx-diagrams",
+            "sphinx-book-theme",
+        ],
     },
     entry_points={
         "console_scripts": [
