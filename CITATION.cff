@@ -8,3 +8,10 @@ authors:
   orcid: "https://orcid.org/0000-0002-6533-3928"
 title: "gribscan"
 url: "https://github.com/gribscan/gribscan"
+keywords:    
+  - fsspec    
+  - grib    
+  - zarr    
+license: MIT    
+repository-code: "https://github.com/gribscan/gribscan"
+type: software
