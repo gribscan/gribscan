@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: "Kölling"
+  given-names: "Tobias"
+- family-names: "Kluft"
+  given-names: "Lukas"
+  orcid: "https://orcid.org/0000-0002-6533-3928"
+title: "gribscan"
+url: "https://github.com/gribscan/gribscan"
+keywords:    
+  - fsspec    
+  - grib    
+  - zarr    
+license: MIT    
+repository-code: "https://github.com/gribscan/gribscan"
+type: software
