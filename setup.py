@@ -12,7 +12,7 @@ setup(
     long_description_content_type="text/markdown",
     packages=find_packages(),
     install_requires=[
-        "cfgrib>=0.9.9.0"",  # previous versions create a cffi error on index
+        "cfgrib>=0.9.9.0",  # previous versions create a cffi error on index
         "eccodes",
         "numcodecs",
         "numpy",
