@@ -218,9 +218,16 @@ def get_time_offset(gribmessage):
     edition = int(gribmessage["editionNumber"])
     if edition == 1:
         timeRangeIndicator = int(gribmessage["timeRangeIndicator"])
-        assert timeRangeIndicator == 0, f"don't know how to handle timeRangeIndicator {timeRangeIndicator}"
-        unit = time_range_units[int(gribmessage.get("indicatorOfUnitOfTimeRange", 255))]
-        offset += int(gribmessage["P1"]) * unit
+        if timeRangeIndicator == 0:
+            unit = time_range_units[int(gribmessage.get("indicatorOfUnitOfTimeRange", 255))]
+            offset += int(gribmessage["P1"]) * unit
+        elif timeRangeIndicator == 1:
+            pass
+        elif timeRangeIndicator == 10:
+            unit = time_range_units[int(gribmessage.get("indicatorOfUnitOfTimeRange", 255))]
+            offset += (int(gribmessage["P1"]) * 256 + int(gribmessage["P2"])) * unit
+        else:
+            raise NotImplementedError(f"don't know how to handle timeRangeIndicator {timeRangeIndicator}")
     else:
         try:
             options = production_template_numbers[int(gribmessage["productDefinitionTemplateNumber"])]
