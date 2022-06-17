@@ -127,6 +127,9 @@ EXTRA_PARAMETERS = [
     "indicatorOfUnitForTimeRange",
     "productDefinitionTemplateNumber",
     "N",
+    "timeRangeIndicator",
+    "P1",
+    "P2",
 ]
 
 production_template_numbers = {
@@ -209,17 +212,39 @@ time_range_units = {
     #255 Missing
 }
 
+
 def get_time_offset(gribmessage):
     offset = 0  # np.timedelta64(0, "s")
-    try:
-        options = production_template_numbers[int(gribmessage["productDefinitionTemplateNumber"])]
-    except KeyError:
-        return offset
-    if options["forcastTime"]:
-        unit = time_range_units[int(gribmessage.get("indicatorOfUnitOfTimeRange", 255))]
-        offset += gribmessage.get("forecastTime", 0) * unit
-    # TODO: handling of time ranges, see cdo: libcdi/src/gribapi_utilities.c: gribMakeTimeString
+    edition = int(gribmessage["editionNumber"])
+    if edition == 1:
+        timeRangeIndicator = int(gribmessage["timeRangeIndicator"])
+        if timeRangeIndicator == 0:
+            unit = time_range_units[int(gribmessage.get("indicatorOfUnitOfTimeRange", 255))]
+            offset += int(gribmessage["P1"]) * unit
+        elif timeRangeIndicator == 1:
+            pass
+        elif timeRangeIndicator == 10:
+            unit = time_range_units[int(gribmessage.get("indicatorOfUnitOfTimeRange", 255))]
+            offset += (int(gribmessage["P1"]) * 256 + int(gribmessage["P2"])) * unit
+        else:
+            raise NotImplementedError(f"don't know how to handle timeRangeIndicator {timeRangeIndicator}")
+    else:
+        try:
+            options = production_template_numbers[int(gribmessage["productDefinitionTemplateNumber"])]
+        except KeyError:
+            return offset
+        if options["forcastTime"]:
+            unit = time_range_units[int(gribmessage.get("indicatorOfUnitOfTimeRange", 255))]
+            offset += gribmessage.get("forecastTime", 0) * unit
+        # TODO: handling of time ranges, see cdo: libcdi/src/gribapi_utilities.c: gribMakeTimeString
     return offset
+
+
+def arrays_to_list(o):
+    try:
+        return o.tolist()
+    except AttributeError:
+        return o
 
 
 def scan_gribfile(filelike, **kwargs):
@@ -259,7 +284,8 @@ def scan_gribfile(filelike, **kwargs):
                "dtype": np.dtype(t).str,
                "shape": [s],
             },
-           "extra": {k: m.get(k, None) for k in EXTRA_PARAMETERS},
+           "extra": {k: arrays_to_list(m.get(k, None)) for k in (
+                EXTRA_PARAMETERS + cfgrib.dataset.GRID_TYPE_MAP.get(m["gridType"], []))},
            **kwargs
            }
 
@@ -293,6 +319,12 @@ def parse_index(indexfile, m2key, duplicate="replace"):
                 index[tinfo] = meta
     return list(index.values())
 
+def is_value(v):
+    if v is None or v == "undef" or v == "unknown":
+        return False
+    else:
+        return True
+
 def inspect_grib_indices(messages, magician):
     coords_by_key = defaultdict(lambda: tuple(set() for _ in magician.dimkeys))
     size_by_key = defaultdict(set)
@@ -306,10 +338,8 @@ def inspect_grib_indices(messages, magician):
         for existing, new in zip(coords_by_key[varkey], coords):
             existing.add(new)
         size_by_key[varkey].add(msg["array"]["shape"][0])
-        attrs_by_key[varkey] = {k: v for k, v in msg["attrs"].items()
-                                if v is not None and v not in {"undef", "unknown"}}
-        extra_by_key[varkey] = {k: v for k, v in msg["extra"].items()
-                                if v is not None and v not in {"undef", "unknown"}}
+        attrs_by_key[varkey] = {k: v for k, v in msg["attrs"].items() if is_value(v)}
+        extra_by_key[varkey] = {k: v for k, v in msg["extra"].items() if is_value(v)}
         dtype_by_key[varkey] = msg["array"]["dtype"]
         global_attrs = msg["globals"]
 
@@ -386,11 +416,19 @@ def build_refs(messages, global_attrs, coords, varinfo, magician):
 
     for name, cs in coords.items():
         cs = np.asarray(cs)
-        attrs, cs, array_meta = magician.coords_hook(name, cs)
-        refs[f"{name}/.zattrs"] = json.dumps({**attrs, "_ARRAY_DIMENSIONS": [name]})
+        attrs, cs, array_meta, dims, compressor = magician.coords_hook(name, cs)
+
+        if compressor is None:
+            compressor_id = None
+            data = bytes(cs)
+        else:
+            compressor_id = compressor.get_config()
+            data = bytes(compressor.encode(cs))
+
+        refs[f"{name}/.zattrs"] = json.dumps({**attrs, "_ARRAY_DIMENSIONS": dims})
         refs[f"{name}/.zarray"] = json.dumps({**{
             "chunks": [cs.size],
-            "compressor": None,
+            "compressor": compressor_id,
             "dtype": cs.dtype.str,
             "fill_value": None,
             "filters": [],
@@ -400,7 +438,7 @@ def build_refs(messages, global_attrs, coords, varinfo, magician):
         },
             **array_meta,
         })
-        refs[f"{name}/0"] = "base64:" + base64.b64encode(bytes(cs)).decode("ascii")
+        refs[f"{name}/0"] = "base64:" + base64.b64encode(data).decode("ascii")
 
     refs[".zgroup"] = json.dumps({"zarr_format": 2})
     refs[".zattrs"] = json.dumps(magician.globals_hook(global_attrs))
