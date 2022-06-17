@@ -430,7 +430,7 @@ def build_refs(messages, global_attrs, coords, varinfo, magician):
             "chunks": [cs.size],
             "compressor": compressor_id,
             "dtype": cs.dtype.str,
-            "fill_value": 0,
+            "fill_value": None,
             "filters": [],
             "order": "C",
             "shape": [cs.size],
