@@ -125,6 +125,8 @@ class IFSMagician(MagicianBase):
         lons, lats = make_gaussian_reduced(pl)
         return {"lon": lons, "lat": lats}
 
+    def m2dataset(self, meta):
+        return "atm3d" if meta["attrs"]["typeOfLevel"].startswith("isobaricInhPa") else "atm2d"
 
 MAGICIANS = {
     "monsoon": Magician,
