@@ -12,11 +12,19 @@ setup(
     long_description_content_type="text/markdown",
     packages=find_packages(),
     install_requires=[
-        "cfgrib",
+        "cfgrib>=0.9.9.0",  # previous versions create a cffi error on index
         "eccodes",
         "numcodecs",
         "numpy",
     ],
+    extras_require={
+        "docs": [
+            "sphinx",
+            "myst-parser",
+            "sphinx-diagrams",
+            "sphinx-book-theme",
+        ],
+    },
     entry_points={
         "console_scripts": [
             "gribscan-index=gribscan.tools:create_index",
