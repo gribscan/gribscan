@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.special import roots_legendre
 import numcodecs
 
 class MagicianBase:
@@ -60,8 +61,8 @@ class Magician(MagicianBase):
 
 
 def make_gaussian_reduced(pl):
-    lons = np.concatenate([np.linspace(0, 360, nl) for nl in pl])
-    single_lats = np.linspace(90, -90, len(pl), endpoint=False) - (2 * 180 / len(pl))
+    lons = np.concatenate([np.linspace(0, 360, nl, endpoint=False) for nl in pl])
+    single_lats = np.rad2deg(-np.arcsin(roots_legendre(len(pl))[0]))
     lats = np.concatenate([[lat]*nl for nl, lat in zip(pl, single_lats)])
     return lons, lats
 
