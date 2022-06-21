@@ -1,6 +1,7 @@
 import numpy as np
-from scipy.special import roots_legendre
 import numcodecs
+
+from .gridutils import varinfo2coords
 
 class MagicianBase:
     def variable_hook(self, key, info):
@@ -60,13 +61,6 @@ class Magician(MagicianBase):
         return attrs, coords, {}, [name], None
 
 
-def make_gaussian_reduced(pl):
-    lons = np.concatenate([np.linspace(0, 360, nl, endpoint=False) for nl in pl])
-    single_lats = np.rad2deg(-np.arcsin(roots_legendre(len(pl))[0]))
-    lats = np.concatenate([[lat]*nl for nl, lat in zip(pl, single_lats)])
-    return lons, lats
-
-
 class IFSMagician(MagicianBase):
     varkeys = "param", "levtype"
     dimkeys = "posix_time", "level"
@@ -122,9 +116,7 @@ class IFSMagician(MagicianBase):
 
     def extra_coords(self, varinfo):
         v0 = next(iter(varinfo.values()))
-        pl = v0["extra"]["pl"]
-        lons, lats = make_gaussian_reduced(pl)
-        return {"lon": lons, "lat": lats}
+        return varinfo2coords(v0)
 
     def m2dataset(self, meta):
         return "atm3d" if meta["attrs"]["typeOfLevel"].startswith("isobaricInhPa") else "atm2d"

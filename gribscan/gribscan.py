@@ -10,6 +10,7 @@ import eccodes
 import numpy as np
 
 from .magician import Magician
+from . import gridutils as gu
 
 import logging
 
@@ -285,7 +286,7 @@ def scan_gribfile(filelike, **kwargs):
                "shape": [s],
             },
            "extra": {k: arrays_to_list(m.get(k, None)) for k in (
-                EXTRA_PARAMETERS + cfgrib.dataset.GRID_TYPE_MAP.get(m["gridType"], []))},
+                EXTRA_PARAMETERS + gu.params_for_gridType(m["gridType"]))},
            **kwargs
            }
 
