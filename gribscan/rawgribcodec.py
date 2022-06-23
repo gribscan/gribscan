@@ -23,9 +23,3 @@ class RawGribCodec(numcodecs.abc.Codec):
             return ndarray_copy(data, out)
         else:
             return data
-
-def register():
-    numcodecs.register_codec(RawGribCodec, "rawgrib")
-    numcodecs.register_codec(RawGribCodec)
-
-register()

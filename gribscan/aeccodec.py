@@ -174,10 +174,3 @@ class AECCodec(numcodecs.abc.Codec):
             return out
         else:
             return b''.join(outlist)
-
-def register():
-    numcodecs.register_codec(AECCodec, "aec")
-
-register()
-
-__all__ = ["AECCodec", "register"]

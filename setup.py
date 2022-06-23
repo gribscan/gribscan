@@ -14,7 +14,7 @@ setup(
     install_requires=[
         "cfgrib>=0.9.9.0",  # previous versions create a cffi error on index
         "eccodes",
-        "numcodecs",
+        "numcodecs>=0.10.0",
         "numpy",
     ],
     extras_require={
