@@ -446,11 +446,10 @@ def build_refs(messages, global_attrs, coords, varinfo, magician):
 
     return refs
 
-def compress_ref_keys(refs):
-    table = {f: f"f{i}" for i, f in enumerate(sorted(set(target[0] for target in refs.values() if isinstance(target, list))))}
-    refs = {k: ["{{u}}{{" + table[target[0]] + "}}"] + target[1:] if isinstance(target, list) else target
+def prepend_path(refs, prefix):
+    """Prepend a path-prefix to all target filenames in a given reference filesystem."""
+    return {k: [prefix + target[0]] + target[1:] if isinstance(target, list) else target
             for k, target in refs.items()}
-    return refs, {v: k for k, v in table.items()}
 
 def grib_magic(filenames, magician=None, global_prefix=""):
     if magician is None:
@@ -468,14 +467,6 @@ def grib_magic(filenames, magician=None, global_prefix=""):
     for dataset, messages in messages_by_dataset.items():
         global_attrs, coords, varinfo = inspect_grib_indices(messages, magician)
         refs = build_refs(messages, global_attrs, coords, varinfo, magician)
-        short_refs, table = compress_ref_keys(refs)
-        refs_by_dataset[dataset] = {
-            "version": 1,
-            "templates": {
-               "u": global_prefix,  # defaults to plain filenames (can be updated externally)
-                **table,
-            },
-            "refs": short_refs
-        }
+        refs_by_dataset[dataset] = prepend_path(refs, global_prefix)
 
     return refs_by_dataset
