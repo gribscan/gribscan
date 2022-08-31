@@ -446,6 +446,19 @@ def build_refs(messages, global_attrs, coords, varinfo, magician):
 
     return refs
 
+def is_zarr_key(key):
+    return key.endswith((".zarray", ".zgroup", ".zattrs"))
+
+def consolidate_metadata(refs):
+    return json.dumps({
+        "zarr_consolidated_format": 1,
+        "metadata": {
+            key: json.loads(value)
+            for key, value in refs.items()
+            if is_zarr_key(key)
+        }
+    })
+
 def prepend_path(refs, prefix):
     """Prepend a path-prefix to all target filenames in a given reference filesystem."""
     return {k: [prefix + target[0]] + target[1:] if isinstance(target, list) else target
@@ -467,6 +480,7 @@ def grib_magic(filenames, magician=None, global_prefix=""):
     for dataset, messages in messages_by_dataset.items():
         global_attrs, coords, varinfo = inspect_grib_indices(messages, magician)
         refs = build_refs(messages, global_attrs, coords, varinfo, magician)
+        refs[".zmetadata"] = consolidate_metadata(refs)
         refs_by_dataset[dataset] = prepend_path(refs, global_prefix)
 
     return refs_by_dataset
