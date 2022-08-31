@@ -447,7 +447,7 @@ def build_refs(messages, global_attrs, coords, varinfo, magician):
     return refs
 
 def is_zarr_key(key):
-    return key.endswith(".zarray") or key.endswith(".zgroup") or key.endswith(".zattrs")
+    return key.endswith((".zarray", ".zgroup", ".zattrs"))
 
 def consolidate_metadata(refs):
     return json.dumps({
