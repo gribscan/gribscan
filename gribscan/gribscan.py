@@ -214,7 +214,7 @@ time_range_units = {
 }
 
 
-def get_time_offset(gribmessage):
+def get_time_offset(gribmessage, lean_towards="end"):
     offset = 0  # np.timedelta64(0, "s")
     edition = int(gribmessage["editionNumber"])
     if edition == 1:
@@ -237,7 +237,9 @@ def get_time_offset(gribmessage):
         if options["forcastTime"]:
             unit = time_range_units[int(gribmessage.get("indicatorOfUnitOfTimeRange", 255))]
             offset += gribmessage.get("forecastTime", 0) * unit
-        # TODO: handling of time ranges, see cdo: libcdi/src/gribapi_utilities.c: gribMakeTimeString
+        if options["timeRange"] and lean_towards == "end":
+            unit = time_range_units[int(gribmessage.get("indicatorOfUnitOfTimeRange", 255))]
+            offset += gribmessage.get("lengthOfTimeRange", 0) * unit
     return offset
 
 
