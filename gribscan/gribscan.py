@@ -466,13 +466,26 @@ def prepend_path(refs, prefix):
     return {k: [prefix + target[0]] + target[1:] if isinstance(target, list) else target
             for k, target in refs.items()}
 
+def compress_extra_attributes(messages):
+    it = iter(messages)
+    mlast = next(it)
+    yield mlast
+    for m in it:
+        if "extra" in m:
+            lastextra = mlast["extra"]
+            # if extra attribute in this message is large (i.e. a list or dict) and is the same as in previous message, replace it by a reference to the previous one
+            extra = {k: lastextra[k] if k in lastextra and isinstance(v, (list, dict)) and lastextra[k] == v else v for k, v in m["extra"].items()}
+            m = {**m, "extra": extra}
+        yield m
+        mlast = m
+
 def grib_magic(filenames, magician=None, global_prefix=""):
     if magician is None:
         magician = Magician()
 
-    messages = [msg
+    messages = list(compress_extra_attributes(msg
                 for filename in filenames
-                for msg in parse_index(filename, magician.m2key)]
+                for msg in parse_index(filename, magician.m2key)))
 
     messages_by_dataset = defaultdict(list)
     for message in messages:
