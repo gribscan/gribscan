@@ -2,6 +2,7 @@ import eccodes
 import numcodecs
 from numcodecs.compat import ndarray_copy, ensure_contiguous_ndarray
 
+
 class RawGribCodec(numcodecs.abc.Codec):
     codec_id = "gribscan.rawgrib"
 
@@ -17,7 +18,6 @@ class RawGribCodec(numcodecs.abc.Codec):
 
         if hasattr(data, "build_array"):
             data = data.build_array()
-
 
         if out is not None:
             return ndarray_copy(data, out)

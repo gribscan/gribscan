@@ -18,7 +18,7 @@ class GaussianReduced(GribGrid):
     def compute_coords(cls, pl):
         lons = np.concatenate([np.linspace(0, 360, nl, endpoint=False) for nl in pl])
         single_lats = np.rad2deg(-np.arcsin(roots_legendre(len(pl))[0]))
-        lats = np.concatenate([[lat]*nl for nl, lat in zip(pl, single_lats)])
+        lats = np.concatenate([[lat] * nl for nl, lat in zip(pl, single_lats)])
         return {"lon": lons, "lat": lats}
 
 
@@ -30,7 +30,7 @@ class LatLonReduced(GribGrid):
     def compute_coords(cls, pl):
         lons = np.concatenate([np.linspace(0, 360, nl, endpoint=False) for nl in pl])
         single_lats = np.linspace(90, -90, len(pl), endpoint=True)
-        lats = np.concatenate([[lat]*nl for nl, lat in zip(pl, single_lats)])
+        lats = np.concatenate([[lat] * nl for nl, lat in zip(pl, single_lats)])
         return {"lon": lons, "lat": lats}
 
 

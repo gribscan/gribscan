@@ -3,6 +3,7 @@ import numcodecs
 
 from .gridutils import varinfo2coords
 
+
 class MagicianBase:
     def variable_hook(self, key, info):
         ...
@@ -14,10 +15,16 @@ class MagicianBase:
         return {}, coords, {}, [name], None
 
     def m2key(self, meta):
-        return tuple(meta[key] for key in self.varkeys), tuple(meta[key] for key in self.dimkeys)
+        return tuple(meta[key] for key in self.varkeys), tuple(
+            meta[key] for key in self.dimkeys
+        )
 
     def m2dataset(self, meta):
-        return "atm3d" if meta["attrs"]["typeOfLevel"].startswith("generalVertical") else "atm2d"
+        return (
+            "atm3d"
+            if meta["attrs"]["typeOfLevel"].startswith("generalVertical")
+            else "atm2d"
+        )
 
     def extra_coords(self, varinfo):
         return {}
@@ -33,7 +40,6 @@ class Magician(MagicianBase):
             history = history + "\r\n"
         history += "🪄🧙‍♂️🔮 magic dataset assembly provided by gribscan.Magician\r\n"
         return {**global_attrs, "history": history}
-
 
     def variable_hook(self, key, info):
         param, levtype = key
@@ -54,8 +60,10 @@ class Magician(MagicianBase):
 
     def coords_hook(self, name, coords):
         if "time" in name:
-            attrs = {'units': 'seconds since 1970-01-01T00:00:00',
-                     'calendar': 'proleptic_gregorian'}
+            attrs = {
+                "units": "seconds since 1970-01-01T00:00:00",
+                "calendar": "proleptic_gregorian",
+            }
         else:
             attrs = {}
         return attrs, coords, {}, [name], None
@@ -71,7 +79,6 @@ class IFSMagician(MagicianBase):
             history = history + "\r\n"
         history += "🪄🧙‍♂️🔮 magic dataset assembly provided by gribscan.IFSMagician\r\n"
         return {**global_attrs, "history": history}
-
 
     def variable_hook(self, key, info):
         param, levtype = key
@@ -100,18 +107,24 @@ class IFSMagician(MagicianBase):
         attrs = {}
         compressor = numcodecs.Blosc("zstd")
         if "time" in name:
-            attrs = {'units': 'seconds since 1970-01-01T00:00:00',
-                     'calendar': 'proleptic_gregorian'}
+            attrs = {
+                "units": "seconds since 1970-01-01T00:00:00",
+                "calendar": "proleptic_gregorian",
+            }
         elif name == "lat":
             dims = ["value"]
-            attrs = {'long_name': 'latitude',
-                     'units': 'degrees_north',
-                     'standard_name': 'latitude'}
+            attrs = {
+                "long_name": "latitude",
+                "units": "degrees_north",
+                "standard_name": "latitude",
+            }
         elif name == "lon":
             dims = ["value"]
-            attrs = {'long_name': 'longitude',
-                     'units': 'degrees_east',
-                     'standard_name': 'longitude'}
+            attrs = {
+                "long_name": "longitude",
+                "units": "degrees_east",
+                "standard_name": "longitude",
+            }
         return attrs, coords, {}, dims, compressor
 
     def extra_coords(self, varinfo):
@@ -119,7 +132,12 @@ class IFSMagician(MagicianBase):
         return varinfo2coords(v0)
 
     def m2dataset(self, meta):
-        return "atm3d" if meta["attrs"]["typeOfLevel"].startswith("isobaricInhPa") else "atm2d"
+        return (
+            "atm3d"
+            if meta["attrs"]["typeOfLevel"].startswith("isobaricInhPa")
+            else "atm2d"
+        )
+
 
 MAGICIANS = {
     "monsoon": Magician,

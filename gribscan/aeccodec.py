@@ -8,19 +8,22 @@ from numcodecs.compat import ensure_contiguous_ndarray
 
 aec = ctypes.CDLL("libaec.so")
 
+
 class aec_stream(ctypes.Structure):
-    _fields_ = [("next_in", ctypes.c_char_p),
-                ("avail_in", ctypes.c_size_t),
-                ("total_in", ctypes.c_size_t),
-                ("next_out", ctypes.c_char_p),
-                ("avail_out", ctypes.c_size_t),
-                ("total_out", ctypes.c_size_t),
-                ("bits_per_sample", ctypes.c_uint),
-                ("block_size", ctypes.c_uint),
-                ("rsi", ctypes.c_uint),
-                ("flags", ctypes.c_uint),
-                ("internal_state", ctypes.c_char_p),
-               ]
+    _fields_ = [
+        ("next_in", ctypes.c_char_p),
+        ("avail_in", ctypes.c_size_t),
+        ("total_in", ctypes.c_size_t),
+        ("next_out", ctypes.c_char_p),
+        ("avail_out", ctypes.c_size_t),
+        ("total_out", ctypes.c_size_t),
+        ("bits_per_sample", ctypes.c_uint),
+        ("block_size", ctypes.c_uint),
+        ("rsi", ctypes.c_uint),
+        ("flags", ctypes.c_uint),
+        ("internal_state", ctypes.c_char_p),
+    ]
+
 
 aec_stream_p = ctypes.POINTER(aec_stream)
 
@@ -77,16 +80,16 @@ aec.aec_buffer_decode.restype = ctypes.c_int
 
 decode_chunksize = 10000000
 
+
 class AECCodec(numcodecs.abc.Codec):
     codec_id = "aec"
-    
+
     def __init__(self, bits_per_sample=8, block_size=8, rsi=2, preprocess=True):
         self.bits_per_sample = bits_per_sample
         self.block_size = block_size
         self.rsi = rsi
         self.preprocess = preprocess
-        
-    
+
     def get_config(self):
         return {
             "id": codec_id,
@@ -95,7 +98,7 @@ class AECCodec(numcodecs.abc.Codec):
             "rsi": self.rsi,
             "preprocess": self.preprocess,
         }
-    
+
     @classmethod
     def from_config(cls, config):
         return cls(**{k: v for k, b in config.items() if k != "id"})
@@ -124,7 +127,7 @@ class AECCodec(numcodecs.abc.Codec):
 
         aec.aec_encode_end(strm)
 
-        return bytes(out[:strm.total_out])
+        return bytes(out[: strm.total_out])
 
     def decode(self, buf, out=None):
         buf = ensure_contiguous_ndarray(buf)
@@ -137,7 +140,7 @@ class AECCodec(numcodecs.abc.Codec):
 
         strm.next_in = buf.ctypes.data_as(ctypes.c_char_p)
         strm.avail_in = buf.size * buf.itemsize
-        
+
         if out is not None:
             strm.next_out = out.ctypes.data_as(ctypes.c_char_p)
             strm.avail_out = out.size * out.itemsize
@@ -149,7 +152,7 @@ class AECCodec(numcodecs.abc.Codec):
 
         if aec.aec_decode_init(strm) != AEC_OK:
             raise ValueError("could not initialize AEC decoder")
-        
+
         if out is not None:
             if aec.aec_decode(strm, AEC_FLUSH) != AEC_OK:
                 raise ValueError("could not decode")
@@ -161,7 +164,7 @@ class AECCodec(numcodecs.abc.Codec):
                     raise ValueError("could not decode")
 
                 if strm.total_out - total_out > 0:
-                    outlist.append(bytes(out_buffer[:strm.total_out - total_out]))
+                    outlist.append(bytes(out_buffer[: strm.total_out - total_out]))
                     total_out = strm.total_out
                     strm.next_out = ctypes.cast(out_buffer, ctypes.c_char_p)
                     strm.avail_out = decode_chunksize
@@ -173,4 +176,4 @@ class AECCodec(numcodecs.abc.Codec):
         if out is not None:
             return out
         else:
-            return b''.join(outlist)
+            return b"".join(outlist)
