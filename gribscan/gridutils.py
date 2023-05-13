@@ -34,6 +34,21 @@ class LatLonReduced(GribGrid):
         return {"lon": lons, "lat": lats}
 
 
+class LatLonRegular(GribGrid):
+    gridType = "regular_ll"
+    params = ["Ni","Nj"]
+
+    @classmethod
+    def compute_coords(cls, Ni, Nj):
+        row = np.linspace(0, 360, Ni, endpoint=False)
+        lons = np.repeat(row[np.newaxis,:], Nj, axis=0)
+        column = np.linspace(90, -90, Nj, endpoint=True)
+        lats = np.repeat(column[:,np.newaxis], Ni, axis=1)
+        print(lons)
+        print(lats)
+        return {"lon": lons.flatten(), "lat": lats.flatten()}
+
+
 grids = {g.gridType: g for g in GribGrid._subclasses}
 
 
