@@ -6,7 +6,7 @@ with open("README.md", "r") as fh:
 
 setup(
     name="gribscan",
-    version="0.0.6",
+    version="0.0.7",
     description="create indices for GRIB files and provide an xarray interface",
     long_description=long_description,
     long_description_content_type="text/markdown",
