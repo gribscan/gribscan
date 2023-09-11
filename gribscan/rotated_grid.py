@@ -78,6 +78,7 @@ def rot_to_reg(pole_lon, pole_lat, lon, lat):
 
     return lon2, lat2
 
+
 def get_gids(gribfile: str, TextIOWrapper: bool = False) -> list:
     """Get GribIDs (gid) for all the messages in one gribfile
 

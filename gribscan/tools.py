@@ -22,6 +22,7 @@ def create_index():
 
     if args.nprocs == 1:
         import ipdb
+
         with ipdb.launch_ipdb_on_exception():
             [gribscan.write_index(source) for source in args.sources]
     else:

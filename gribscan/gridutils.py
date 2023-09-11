@@ -2,6 +2,7 @@ import numpy as np
 from scipy.special import roots_legendre
 from .rotated_grid import rot_to_reg
 
+
 class GribGrid:
     _subclasses = []
 
@@ -36,11 +37,19 @@ class LatLonReduced(GribGrid):
 
 class LatLonRotated(GribGrid):
     gridType = "rotated_ll"
-    params = ["Ni", "Nj", "latitudeOfFirstGridPointInDegrees", "longitudeOfFirstGridPointInDegrees", "latitudeOfLastGridPointInDegrees", "longitudeOfLastGridPointInDegrees", "latitudeOfSouthernPoleInDegrees", "longitudeOfSouthernPoleInDegrees"]
+    params = [
+        "Ni",
+        "Nj",
+        "latitudeOfFirstGridPointInDegrees",
+        "longitudeOfFirstGridPointInDegrees",
+        "latitudeOfLastGridPointInDegrees",
+        "longitudeOfLastGridPointInDegrees",
+        "latitudeOfSouthernPoleInDegrees",
+        "longitudeOfSouthernPoleInDegrees",
+    ]
 
     @classmethod
     def compute_coords(cls, **kwargs):
-        
         Ni = kwargs["Ni"]
         Nj = kwargs["Nj"]
         latFirst = kwargs["latitudeOfFirstGridPointInDegrees"]
@@ -56,15 +65,7 @@ class LatLonRotated(GribGrid):
 
         lons, lats = rot_to_reg(lonPole, latPole, lons, lats)
 
-        # import xarray as xr
-        # XXX: big hack, we need to actually parse the grid here, I loaded it with pyg2p instead...
-        # ds_grid = xr.open_dataset("/home/lcd/sample/sample/griddump.nc")
-        # import ipdb
-        # ipdb.set_trace()
-        
-        
         return {"lon": lons.flatten(), "lat": lats.flatten()}
-        # return {"lon": lons.tolist(), "lat": lats.tolist()}
 
 
 grids = {g.gridType: g for g in GribGrid._subclasses}
@@ -78,6 +79,5 @@ def params_for_gridType(gridType):
 
 
 def varinfo2coords(varinfo):
-    print(varinfo["extra"])
     grid = grids[varinfo["attrs"]["gridType"]]
     return grid.compute_coords(**{k: varinfo["extra"][k] for k in grid.params})

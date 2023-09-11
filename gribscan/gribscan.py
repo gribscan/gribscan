@@ -134,7 +134,7 @@ EXTRA_PARAMETERS = [
     "timeRangeIndicator",
     "P1",
     "P2",
-    "latitudeOfFirstGridPointInDegrees"
+    "latitudeOfFirstGridPointInDegrees",
 ]
 
 production_template_numbers = {
@@ -230,7 +230,7 @@ def get_time_offset(gribmessage, lean_towards="end"):
             pass
         elif timeRangeIndicator in [2, 4]:
             # Product with a valid time ranging between reference time + P1 and
-            # reference time + P2 
+            # reference time + P2
             unit = time_range_units[
                 int(gribmessage.get("indicatorOfUnitOfTimeRange", 255))
             ]
