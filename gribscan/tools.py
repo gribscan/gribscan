@@ -21,10 +21,7 @@ def create_index():
     args = parser.parse_args()
 
     if args.nprocs == 1:
-        import ipdb
-
-        with ipdb.launch_ipdb_on_exception():
-            [gribscan.write_index(source) for source in args.sources]
+        [gribscan.write_index(source) for source in args.sources]
     else:
         with mp.Pool(args.nprocs) as pool:
             pool.map(gribscan.write_index, args.sources)
