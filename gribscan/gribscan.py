@@ -134,7 +134,6 @@ EXTRA_PARAMETERS = [
     "timeRangeIndicator",
     "P1",
     "P2",
-    "latitudeOfFirstGridPointInDegrees",
 ]
 
 production_template_numbers = {
