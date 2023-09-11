@@ -20,8 +20,13 @@ def create_index():
     )
     args = parser.parse_args()
 
-    with mp.Pool(args.nprocs) as pool:
-        pool.map(gribscan.write_index, args.sources)
+    if args.nprocs == 1:
+        import ipdb
+        with ipdb.launch_ipdb_on_exception():
+            [gribscan.write_index(source) for source in args.sources]
+    else:
+        with mp.Pool(args.nprocs) as pool:
+            pool.map(gribscan.write_index, args.sources)
 
 
 def build_dataset():
@@ -67,5 +72,7 @@ def build_dataset():
     )
 
     for dataset, ref in refs.items():
-        with open(f"{args.output}/{dataset}.json", "w") as indexfile:
+        fp = Path(f"{args.output}/{dataset}.json")
+        fp.parent.mkdir(exist_ok=True, parents=True)
+        with open(fp, "w") as indexfile:
             json.dump(ref, indexfile)

@@ -99,6 +99,8 @@ class IFSMagician(MagicianBase):
             "attrs": {
                 **info["attrs"],
                 "coordinates": "lon lat",
+                "Ni": info["extra"]["Ni"],
+                "Nj": info["extra"]["Nj"],
             },
         }
 
