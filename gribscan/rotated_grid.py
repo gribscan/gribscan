@@ -28,13 +28,13 @@ def rot_to_reg(pole_lon, pole_lat, lon, lat):
     lat1 : float, list
         Latitudes  of regular grid. Same shape as input.
     """
-    sin_pole = np.sin(rad * (pole_lat + 90.0))
-    cos_pole = np.cos(rad * (pole_lat + 90.0))
+    sin_pole = np.sin(np.deg2rad(pole_lat + 90.0))
+    cos_pole = np.cos(np.deg2rad(pole_lat + 90.0))
 
-    sin_lon = np.sin(rad * lon)
-    cos_lon = np.cos(rad * lon)
-    sin_lat = np.sin(rad * lat)
-    cos_lat = np.cos(rad * lat)
+    sin_lon = np.sin(np.deg2rad(lon))
+    cos_lon = np.cos(np.deg2rad(lon))
+    sin_lat = np.sin(np.deg2rad(lat))
+    cos_lat = np.cos(np.deg2rad(lat))
 
     lat_tmp = cos_pole * sin_lat + sin_pole * cos_lat * cos_lon
 
