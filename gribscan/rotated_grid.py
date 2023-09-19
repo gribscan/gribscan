@@ -47,14 +47,7 @@ def rot_to_reg(pole_lon, pole_lat, lon, lat):
 
     cos_tmp = (cos_pole * cos_lat * cos_lon - sin_pole * sin_lat) / cos_lat2
 
-    try:
-        cos_tmp[np.where(cos_tmp < -1.0)] = -1.0
-        cos_tmp[np.where(cos_tmp > 1.0)] = 1.0
-    except TypeError:
-        if cos_tmp < -1.0:
-            cos_tmp = -1.0
-        if cos_tmp > 1.0:
-            cos_tmp = 1.0
+        cos_tmp = np.clip(cos_tmp, -1.0, 1.0)
 
     tmp_sin_lon = cos_lat * sin_lon / cos_lat2
     tmp_cos_lon = np.arccos(cos_tmp) * radinv
