@@ -40,7 +40,7 @@ def rot_to_reg(pole_lon, pole_lat, lon, lat):
 
     lat_tmp = np.clip(lat_tmp, -1.0, 1.0)
 
-    lat2 = np.arcsin(lat_tmp) * radinv
+    lat2 = np.rad2deg(np.arcsin(lat_tmp))
 
     cos_lat2 = np.cos(lat2 * rad)
 
