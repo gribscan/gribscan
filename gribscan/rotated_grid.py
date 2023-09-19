@@ -51,13 +51,7 @@ def rot_to_reg(pole_lon, pole_lat, lon, lat):
     tmp_sin_lon = cos_lat * sin_lon / cos_lat2
     tmp_cos_lon = np.arccos(cos_tmp) * radinv
 
-    try:
-        tmp_cos_lon[np.where(tmp_sin_lon < 0.0)] = -tmp_cos_lon[
-            np.where(tmp_sin_lon < 0.0)
-        ]
-    except IndexError:
-        if tmp_sin_lon < 0.0:
-            tmp_cos_lon = -tmp_cos_lon
+    tmp_cos_lon = np.where(tmp_sin_lon < 0.0, -tmp_cos_lon, tmp_cos_lon)
 
     lon2 = tmp_cos_lon + pole_lon
 
