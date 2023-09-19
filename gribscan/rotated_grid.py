@@ -49,7 +49,7 @@ def rot_to_reg(pole_lon, pole_lat, lon, lat):
         cos_tmp = np.clip(cos_tmp, -1.0, 1.0)
 
     tmp_sin_lon = cos_lat * sin_lon / cos_lat2
-    tmp_cos_lon = np.arccos(cos_tmp) * radinv
+    tmp_cos_lon = np.rad2deg(np.arccos(cos_tmp))
 
     tmp_cos_lon = np.where(tmp_sin_lon < 0.0, -tmp_cos_lon, tmp_cos_lon)
 
