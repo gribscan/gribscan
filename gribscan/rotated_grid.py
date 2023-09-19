@@ -39,14 +39,7 @@ def rot_to_reg(pole_lon, pole_lat, lon, lat):
 
     lat_tmp = cos_pole * sin_lat + sin_pole * cos_lat * cos_lon
 
-    try:
-        lat_tmp[np.where(lat_tmp < -1.0)] = -1.0
-        lat_tmp[np.where(lat_tmp > 1.0)] = 1.0
-    except TypeError:
-        if lat_tmp < -1.0:
-            lat_tmp = -1.0
-        if lat_tmp > 1.0:
-            lat_tmp = 1.0
+    lat_tmp = np.clip(lat_tmp, -1.0, 1.0)
 
     lat2 = np.arcsin(lat_tmp) * radinv
 
