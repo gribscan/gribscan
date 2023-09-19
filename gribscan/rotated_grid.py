@@ -2,11 +2,6 @@
 import numpy as np
 import eccodes as ec
 
-pi = np.pi
-rad = pi / 180.0
-radinv = 1.0 / rad
-
-
 def rot_to_reg(pole_lon, pole_lat, lon, lat):
     """Rotates from rotated grid to regular grid
 
