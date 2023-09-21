@@ -474,7 +474,7 @@ def build_refs(messages, global_attrs, coords, varinfo, magician):
                 "dtype": info["dtype"],
                 "fill_value": info["attrs"].get("missingValue", 9999),
                 "filters": [],
-                "order": "C",
+                "order": "F",
                 "zarr_format": 2,
             }
         )
