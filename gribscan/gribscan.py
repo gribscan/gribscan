@@ -431,6 +431,15 @@ def inspect_grib_indices(messages, magician):
 
 
 def build_refs(messages, global_attrs, coords, varinfo, magician):
+    # any "coordinates" that are not 1D are considered auxiliary coordinates
+    # and will be added as extra variables
+    # TODO: how do I do this?
+    aux_coords = {}
+    for name in list(coords.keys()):
+        vs = coords[name]
+        if len(np.asarray(vs).shape) != 1:
+            aux_coords[name] = coords.pop(name)
+
     coords_inv = {k: {v: i for i, v in enumerate(vs)} for k, vs in coords.items()}
 
     refs = {}
@@ -454,8 +463,9 @@ def build_refs(messages, global_attrs, coords, varinfo, magician):
                 "_ARRAY_DIMENSIONS": list(info["dims"]) + list(info["data_dims"]),
             }
         )
-        shape = [len(coords[dim]) for dim in info["dims"]] + list(info["data_shape"])
-        chunks = [1 for _ in info["shape"]] + list(info["data_shape"])
+        data_shape = list(len(coords[dim]) for dim in info["data_dims"])
+        shape = [len(coords[dim]) for dim in info["dims"]] + data_shape
+        chunks = [1 for _ in info["shape"]] + data_shape
         refs[info["name"] + "/.zarray"] = json.dumps(
             {
                 "shape": shape,

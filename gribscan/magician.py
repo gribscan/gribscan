@@ -166,11 +166,11 @@ class HarmonieMagician(MagicianBase):
 
         return {
             "dims": dims,
+            "data_dims": ["x", "y"],
             "name": name,
-            "data_dims": ["value"],
             "attrs": {
                 **info["attrs"],
-                "coordinates": "lon lat",
+                # "coordinates": "lon lat",
                 "Ni": info["extra"]["Ni"],
                 "Nj": info["extra"]["Nj"],
             },
@@ -186,14 +186,14 @@ class HarmonieMagician(MagicianBase):
                 "calendar": "proleptic_gregorian",
             }
         elif name == "lat":
-            dims = ["value"]
+            dims = ["x", "y"]
             attrs = {
                 "long_name": "latitude",
                 "units": "degrees_north",
                 "standard_name": "latitude",
             }
         elif name == "lon":
-            dims = ["value"]
+            dims = ["x", "y"]
             attrs = {
                 "long_name": "longitude",
                 "units": "degrees_east",

@@ -65,7 +65,10 @@ class LatLonRotated(GribGrid):
 
         lons, lats = rot_to_reg(lonPole, latPole, lons, lats)
 
-        return {"lon": lons.flatten(), "lat": lats.flatten()}
+        x = np.linspace(0, 1, Ni)
+        y = np.linspace(0, 1, Nj)
+
+        return {"lon": lons, "lat": lats, "x": x, "y": y}
 
 
 grids = {g.gridType: g for g in GribGrid._subclasses}
