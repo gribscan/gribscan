@@ -1,6 +1,5 @@
 
 import numpy as np
-import eccodes as ec
 
 def rot_to_reg(pole_lon, pole_lat, lon, lat):
     """Rotates from rotated grid to regular grid
