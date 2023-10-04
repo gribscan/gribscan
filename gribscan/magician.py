@@ -167,6 +167,7 @@ class HarmonieMagician(MagicianBase):
         return {
             "dims": dims,
             "data_dims": ["y", "x"],
+            "data_shape": "__from_data_dims__",
             "name": name,
             "attrs": {
                 **info["attrs"],

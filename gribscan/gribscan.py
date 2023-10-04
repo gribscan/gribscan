@@ -460,7 +460,11 @@ def build_refs(messages, global_attrs, coords, varinfo, magician):
                 "_ARRAY_DIMENSIONS": list(info["dims"]) + list(info["data_dims"]),
             }
         )
-        data_shape = list(len(coords[dim]) for dim in info["data_dims"])
+        data_shape = info["data_shape"]
+        if data_shape == "__from_data_dims__":
+            if not "data_dims" in info:
+                raise ValueError("To use __from_data_dims__, data_dims must be set")
+            data_shape = list(len(coords[dim]) for dim in info["data_dims"])
         shape = [len(coords[dim]) for dim in info["dims"]] + data_shape
         chunks = [1 for _ in info["shape"]] + data_shape
         refs[info["name"] + "/.zarray"] = json.dumps(
