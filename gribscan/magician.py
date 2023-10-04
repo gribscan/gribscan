@@ -166,13 +166,11 @@ class HarmonieMagician(MagicianBase):
 
         return {
             "dims": dims,
-            "data_dims": ["x", "y"],
+            "data_dims": ["y", "x"],
             "name": name,
             "attrs": {
                 **info["attrs"],
-                # "coordinates": "lon lat",
-                "Ni": info["extra"]["Ni"],
-                "Nj": info["extra"]["Nj"],
+                "coordinates": "lon lat",
             },
         }
 
@@ -186,14 +184,14 @@ class HarmonieMagician(MagicianBase):
                 "calendar": "proleptic_gregorian",
             }
         elif name == "lat":
-            dims = ["x", "y"]
+            dims = ["y", "x"]
             attrs = {
                 "long_name": "latitude",
                 "units": "degrees_north",
                 "standard_name": "latitude",
             }
         elif name == "lon":
-            dims = ["x", "y"]
+            dims = ["y", "x"]
             attrs = {
                 "long_name": "longitude",
                 "units": "degrees_east",
@@ -206,11 +204,7 @@ class HarmonieMagician(MagicianBase):
         return varinfo2coords(v0)
 
     def m2dataset(self, meta):
-        return (
-            "atm3d"
-            if meta["attrs"]["typeOfLevel"].startswith("isobaricInhPa")
-            else "atm2d"
-        )
+        return "harmonie"
 
 
 MAGICIANS = {

@@ -431,16 +431,13 @@ def inspect_grib_indices(messages, magician):
 
 
 def build_refs(messages, global_attrs, coords, varinfo, magician):
-    # any "coordinates" that are not 1D are considered auxiliary coordinates
-    # and will be added as extra variables
-    # TODO: how do I do this?
-    aux_coords = {}
-    for name in list(coords.keys()):
-        vs = coords[name]
-        if len(np.asarray(vs).shape) != 1:
-            aux_coords[name] = coords.pop(name)
-
-    coords_inv = {k: {v: i for i, v in enumerate(vs)} for k, vs in coords.items()}
+    # xarray allows for multidimensional coordinates, for example lat/lon
+    # coordinates that change along both the x and y dimensions of a dataset.
+    # Only for the coordinates that are aligned with the data dimensions do we
+    # need to construct the inverse mapping from coordinate value to index. We
+    # select out these "principal" coordinates here.
+    principal_coords = {k: v for (k, v) in coords.items() if len(np.asarray(v).shape) == 1}
+    coords_inv = {k: {v: i for i, v in enumerate(vs)} for k, vs in principal_coords.items()}
 
     refs = {}
     for msg in messages:
@@ -474,7 +471,7 @@ def build_refs(messages, global_attrs, coords, varinfo, magician):
                 "dtype": info["dtype"],
                 "fill_value": info["attrs"].get("missingValue", 9999),
                 "filters": [],
-                "order": "F",
+                "order": "C",
                 "zarr_format": 2,
             }
         )
@@ -489,24 +486,27 @@ def build_refs(messages, global_attrs, coords, varinfo, magician):
         else:
             compressor_id = compressor.get_config()
             data = bytes(compressor.encode(cs))
-
+            
         refs[f"{name}/.zattrs"] = json.dumps({**attrs, "_ARRAY_DIMENSIONS": dims})
         refs[f"{name}/.zarray"] = json.dumps(
             {
                 **{
-                    "chunks": [cs.size],
+                    "chunks": cs.shape,
                     "compressor": compressor_id,
                     "dtype": cs.dtype.str,
                     "fill_value": None,
                     "filters": [],
                     "order": "C",
-                    "shape": [cs.size],
+                    "shape": cs.shape,
                     "zarr_format": 2,
                 },
                 **array_meta,
             }
         )
-        refs[f"{name}/0"] = "base64:" + base64.b64encode(data).decode("ascii")
+        # depending on the number of dimensions, we need the first chunk have
+        # index 0 value for each dimension, e.g. 0 for 1D, 0.0 for 2D, etc
+        index_str = ".".join(["0"] * len(dims))
+        refs[f"{name}/{index_str}"] = "base64:" + base64.b64encode(data).decode("ascii")
 
     refs[".zgroup"] = json.dumps({"zarr_format": 2})
     refs[".zattrs"] = json.dumps(magician.globals_hook(global_attrs))
