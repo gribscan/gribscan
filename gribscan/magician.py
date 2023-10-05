@@ -207,7 +207,7 @@ class HarmonieMagician(MagicianBase):
     def m2dataset(self, meta):
         return (
             "atm3d"
-            if meta["attrs"]["typeOfLevel"].startswith("isobaricInhPa")
+            if meta["attrs"]["typeOfLevel"].startswith("hybrid")
             else "atm2d"
         )
 
