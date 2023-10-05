@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.special import roots_legendre
+from .rotated_grid import rot_to_reg
 
 
 class GribGrid:
@@ -32,6 +33,42 @@ class LatLonReduced(GribGrid):
         single_lats = np.linspace(90, -90, len(pl), endpoint=True)
         lats = np.concatenate([[lat] * nl for nl, lat in zip(pl, single_lats)])
         return {"lon": lons, "lat": lats}
+
+
+class LatLonRotated(GribGrid):
+    gridType = "rotated_ll"
+    params = [
+        "Ni",
+        "Nj",
+        "latitudeOfFirstGridPointInDegrees",
+        "longitudeOfFirstGridPointInDegrees",
+        "latitudeOfLastGridPointInDegrees",
+        "longitudeOfLastGridPointInDegrees",
+        "latitudeOfSouthernPoleInDegrees",
+        "longitudeOfSouthernPoleInDegrees",
+    ]
+
+    @classmethod
+    def compute_coords(cls, **kwargs):
+        Ni = kwargs["Ni"]
+        Nj = kwargs["Nj"]
+        latFirst = kwargs["latitudeOfFirstGridPointInDegrees"]
+        latLast = kwargs["latitudeOfLastGridPointInDegrees"]
+        lonFirst = kwargs["longitudeOfFirstGridPointInDegrees"]
+        lonLast = kwargs["longitudeOfLastGridPointInDegrees"]
+        latPole = kwargs["latitudeOfSouthernPoleInDegrees"]
+        lonPole = kwargs["longitudeOfSouthernPoleInDegrees"]
+
+        lons, lats = np.meshgrid(
+            np.linspace(lonFirst, lonLast, Ni), np.linspace(latFirst, latLast, Nj)
+        )
+
+        lons, lats = rot_to_reg(lonPole, latPole, lons, lats)
+
+        x = np.linspace(0, 1, Ni)
+        y = np.linspace(0, 1, Nj)
+
+        return {"lon": lons, "lat": lats, "x": x, "y": y}
 
 
 grids = {g.gridType: g for g in GribGrid._subclasses}
