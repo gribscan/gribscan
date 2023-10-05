@@ -205,7 +205,11 @@ class HarmonieMagician(MagicianBase):
         return varinfo2coords(v0)
 
     def m2dataset(self, meta):
-        return "harmonie"
+        return (
+            "atm3d"
+            if meta["attrs"]["typeOfLevel"].startswith("isobaricInhPa")
+            else "atm2d"
+        )
 
 
 MAGICIANS = {
