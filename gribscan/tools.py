@@ -11,6 +11,14 @@ def create_index():
     parser = argparse.ArgumentParser()
     parser.add_argument("sources", metavar="GRIB", help="source gribfile(s)", nargs="+")
     parser.add_argument(
+        "-o",
+        "--outdir",
+        help="output directory to write index files",
+        type=str,
+        default=None,
+        nargs="?",
+    )
+    parser.add_argument(
         "-n",
         "--nprocs",
         help="number of parallel processes",
@@ -20,8 +28,14 @@ def create_index():
     )
     args = parser.parse_args()
 
+    if args.outdir is not None:
+        indices = [Path(args.outdir) / (Path(s).stem + ".index") for s in args.sources]
+        pargs = zip(args.sources, indices)
+    else:
+        pargs = zip(args.sources)
+
     with mp.Pool(args.nprocs) as pool:
-        pool.map(gribscan.write_index, args.sources)
+        pool.starmap(gribscan.write_index, pargs)
 
 
 def build_dataset():
