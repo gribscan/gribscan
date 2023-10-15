@@ -20,6 +20,12 @@ def create_index():
         nargs="?",
     )
     parser.add_argument(
+        "-f",
+        "--force",
+        help="overwrite existing index files",
+        action="store_true",
+    )
+    parser.add_argument(
         "-n",
         "--nprocs",
         help="number of parallel processes",
@@ -29,7 +35,7 @@ def create_index():
     )
     args = parser.parse_args()
 
-    mapfunc = partial(gribscan.write_index, outdir=args.outdir)
+    mapfunc = partial(gribscan.write_index, outdir=args.outdir, force=args.force)
     with mp.Pool(args.nprocs) as pool:
         pool.map(mapfunc, args.sources)
 

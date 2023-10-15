@@ -314,7 +314,7 @@ def scan_gribfile(filelike, **kwargs):
         }
 
 
-def write_index(gribfile, idxfile=None, outdir=None):
+def write_index(gribfile, idxfile=None, outdir=None, force=False):
     p = pathlib.Path(gribfile)
     if outdir is None:
         outdir = p.parent
@@ -324,7 +324,7 @@ def write_index(gribfile, idxfile=None, outdir=None):
 
     gen = scan_gribfile(open(p, "rb"), filename=p.name)
 
-    with open(idxfile, "w") as output_file:
+    with open(idxfile, "w" if force else "x") as output_file:
         for record in gen:
             json.dump(record, output_file)
             output_file.write("\n")
