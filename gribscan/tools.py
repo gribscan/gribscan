@@ -1,5 +1,6 @@
 import argparse
 import json
+from functools import partial
 from pathlib import Path
 import multiprocessing as mp
 
@@ -28,14 +29,9 @@ def create_index():
     )
     args = parser.parse_args()
 
-    if args.outdir is not None:
-        indices = [Path(args.outdir) / (Path(s).stem + ".index") for s in args.sources]
-        pargs = zip(args.sources, indices)
-    else:
-        pargs = zip(args.sources)
-
+    mapfunc = partial(gribscan.write_index, outdir=args.outdir)
     with mp.Pool(args.nprocs) as pool:
-        pool.starmap(gribscan.write_index, pargs)
+        pool.map(mapfunc, args.sources)
 
 
 def build_dataset():

@@ -314,10 +314,13 @@ def scan_gribfile(filelike, **kwargs):
         }
 
 
-def write_index(gribfile, idxfile=None):
+def write_index(gribfile, idxfile=None, outdir=None):
     p = pathlib.Path(gribfile)
+    if outdir is None:
+        outdir = p.parent
+
     if idxfile is None:
-        idxfile = p.parent / (p.stem + ".index")
+        idxfile = pathlib.Path(outdir) / (p.stem + ".index")
 
     gen = scan_gribfile(open(p, "rb"), filename=p.name)
 
