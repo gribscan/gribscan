@@ -322,7 +322,7 @@ def write_index(gribfile, idxfile=None, outdir=None, force=False):
     if idxfile is None:
         idxfile = pathlib.Path(outdir) / (p.stem + ".index")
 
-    gen = scan_gribfile(open(p, "rb"), filename=p.name)
+    gen = scan_gribfile(open(p, "rb"), filename=p.resolve().as_posix())
 
     with open(idxfile, "w" if force else "x") as output_file:
         for record in gen:
@@ -517,9 +517,13 @@ def consolidate_metadata(refs):
 
 
 def prepend_path(refs, prefix):
-    """Prepend a path-prefix to all target filenames in a given reference filesystem."""
+    """Prepend a path-prefix to all target filenames in a given reference filesystem.
+
+    For absolute paths, the existing parents are overwritten.
+    """
     return {
-        k: [prefix + target[0]] + target[1:] if isinstance(target, list) else target
+        k: [(pathlib.Path(prefix) / pathlib.Path(target[0]).name).as_posix()] + target[1:]
+        if isinstance(target, list) else target
         for k, target in refs.items()
     }
 
