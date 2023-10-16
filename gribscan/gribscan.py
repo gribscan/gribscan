@@ -216,6 +216,10 @@ time_range_units = {
 
 
 def get_time_offset(gribmessage, lean_towards="end"):
+    """Calculate time offset based on GRIB definition.
+
+    See: https://codes.ecmwf.int/grib/format/grib1/ctable/5/
+    """
     offset = 0  # np.timedelta64(0, "s")
     edition = int(gribmessage["editionNumber"])
     if edition == 1:
