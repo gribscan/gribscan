@@ -1,5 +1,7 @@
 import argparse
 import json
+import textwrap
+from functools import partial
 from pathlib import Path
 import multiprocessing as mp
 
@@ -11,6 +13,20 @@ def create_index():
     parser = argparse.ArgumentParser()
     parser.add_argument("sources", metavar="GRIB", help="source gribfile(s)", nargs="+")
     parser.add_argument(
+        "-o",
+        "--outdir",
+        help="output directory to write index files",
+        type=str,
+        default=None,
+        nargs="?",
+    )
+    parser.add_argument(
+        "-f",
+        "--force",
+        help="overwrite existing index files",
+        action="store_true",
+    )
+    parser.add_argument(
         "-n",
         "--nprocs",
         help="number of parallel processes",
@@ -20,12 +36,15 @@ def create_index():
     )
     args = parser.parse_args()
 
+    mapfunc = partial(gribscan.write_index, outdir=args.outdir, force=args.force)
     with mp.Pool(args.nprocs) as pool:
-        pool.map(gribscan.write_index, args.sources)
+        pool.map(mapfunc, args.sources)
 
 
 def build_dataset():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.RawTextHelpFormatter,
+    )
     parser.add_argument(
         "indices",
         metavar="GRIB.index",
@@ -44,7 +63,19 @@ def build_dataset():
         "--prefix",
         metavar="template_prefix",
         default=None,
-        help="Absolute path to the location of the dataset",
+        help=textwrap.dedent("""\
+            Absolute path to the location of the dataset.
+
+            The prefix is prepended to the filename stored in the index files.
+            For full file paths, a sub-tree can be denoted using the '/./'
+            character. The following examples show how a prefix adds to
+            different filenames:
+
+            /prefix/ + filename.grb = /prefix/filename.grb
+            /prefix/ + path/filename.grb = /prefix/path/filename.grb
+            /prefix/ + path/./sub/tree/filename.grb = /prefix/sub/tree/filename.grb
+        """
+        ),
         type=str,
     )
     parser.add_argument(

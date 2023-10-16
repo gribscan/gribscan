@@ -314,14 +314,19 @@ def scan_gribfile(filelike, **kwargs):
         }
 
 
-def write_index(gribfile, idxfile=None):
+def write_index(gribfile, idxfile=None, outdir=None, force=False):
     p = pathlib.Path(gribfile)
+    if outdir is None:
+        outdir = p.parent
+
     if idxfile is None:
-        idxfile = p.parent / (p.stem + ".index")
+        idxfile = pathlib.Path(outdir) / (p.stem + ".index")
 
-    gen = scan_gribfile(open(p, "rb"), filename=p.name)
+    # We need to use the gribfile (str) variable because Path() objects
+    # collapse the "/./" notation used to denote subtrees.
+    gen = scan_gribfile(open(p, "rb"), filename=gribfile)
 
-    with open(idxfile, "w") as output_file:
+    with open(idxfile, "w" if force else "x") as output_file:
         for record in gen:
             json.dump(record, output_file)
             output_file.write("\n")
@@ -513,10 +518,31 @@ def consolidate_metadata(refs):
     )
 
 
+def subtree(path, sep="/./"):
+    """Return sub-tree of a given path.
+
+    The start of a sub-tree is marked by a user-defined string (default '/./').
+
+    Example:
+
+    >>> subtree("/foo/bar/./baz/")
+    "baz/"
+
+    Notes:
+        This funcion mimicks the behaviour of rsync in -R/--relative mode.
+        https://askubuntu.com/a/552122
+    """
+    return path.split(sep)[-1]
+
+
 def prepend_path(refs, prefix):
-    """Prepend a path-prefix to all target filenames in a given reference filesystem."""
+    """Prepend a path-prefix to all target filenames in a given reference filesystem.
+
+    For absolute target paths, the existing target parents are overwritten.
+    """
     return {
-        k: [prefix + target[0]] + target[1:] if isinstance(target, list) else target
+        k: [(pathlib.Path(prefix) / subtree(target[0])).as_posix()] + target[1:]
+        if isinstance(target, list) else target
         for k, target in refs.items()
     }
 
