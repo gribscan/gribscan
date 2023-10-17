@@ -88,9 +88,6 @@ def build_dataset():
     )
     args = parser.parse_args()
 
-    if args.prefix is None:
-        args.prefix = Path(args.indices[0]).parent.resolve().as_posix() + "/"
-
     magician = MAGICIANS[args.magician]()
 
     refs = gribscan.grib_magic(

@@ -586,7 +586,7 @@ def compress_extra_attributes(messages):
         mlast = m
 
 
-def grib_magic(filenames, magician=None, global_prefix=""):
+def grib_magic(filenames, magician=None, global_prefix=None):
     if magician is None:
         magician = Magician()
 
@@ -607,6 +607,9 @@ def grib_magic(filenames, magician=None, global_prefix=""):
         global_attrs, coords, varinfo = inspect_grib_indices(messages, magician)
         refs = build_refs(messages, global_attrs, coords, varinfo, magician)
         refs[".zmetadata"] = consolidate_metadata(refs)
-        refs_by_dataset[dataset] = prepend_path(refs, global_prefix)
+        if global_prefix is None:
+            refs_by_dataset[dataset] = refs
+        else:
+            refs_by_dataset[dataset] = prepend_path(refs, global_prefix)
 
     return refs_by_dataset
