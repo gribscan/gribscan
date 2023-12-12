@@ -91,18 +91,15 @@ def _split_file(f, skip=0):
     while f.tell() < size:
         logger.debug(f"extract part {part + 1}")
         start = f.tell()
-        indicator = f.read(16)
+        indicator = f.peek(16)
         if indicator[:4] != b"GRIB":
             logger.info(f"non-consecutive messages, searching for part {part + 1}")
-            f.seek(start)
             start = find_stream(f, b"GRIB")
-            indicator = f.read(16)
+            indicator = f.peek(16)
         if len(indicator) < 16:
             return
 
         grib_edition = indicator[7]
-
-        f.seek(start)
 
         if grib_edition == 1:
             part_size = int.from_bytes(indicator[4:7], "big")
