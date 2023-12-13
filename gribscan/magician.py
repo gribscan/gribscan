@@ -99,6 +99,7 @@ class IFSMagician(MagicianBase):
             "attrs": {
                 **info["attrs"],
                 "coordinates": "lon lat",
+                "missingValue": 9999,
             },
         }
 

@@ -91,18 +91,15 @@ def _split_file(f, skip=0):
     while f.tell() < size:
         logger.debug(f"extract part {part + 1}")
         start = f.tell()
-        indicator = f.read(16)
+        indicator = f.peek(16)
         if indicator[:4] != b"GRIB":
             logger.info(f"non-consecutive messages, searching for part {part + 1}")
-            f.seek(start)
             start = find_stream(f, b"GRIB")
-            indicator = f.read(16)
+            indicator = f.peek(16)
         if len(indicator) < 16:
             return
 
         grib_edition = indicator[7]
-
-        f.seek(start)
 
         if grib_edition == 1:
             part_size = int.from_bytes(indicator[4:7], "big")
@@ -232,7 +229,7 @@ def get_time_offset(gribmessage, lean_towards="end"):
             offset += int(gribmessage["P1"]) * unit
         elif timeRangeIndicator == 1:
             pass
-        elif timeRangeIndicator == 3:
+        elif timeRangeIndicator in [2, 3]:
             unit = time_range_units[
                 int(gribmessage.get("indicatorOfUnitOfTimeRange", 255))
             ]
@@ -240,6 +237,11 @@ def get_time_offset(gribmessage, lean_towards="end"):
                 offset += int(gribmessage["P1"]) * unit
             elif lean_towards == "end":
                 offset += int(gribmessage["P2"]) * unit
+        elif timeRangeIndicator == 4:
+            unit = time_range_units[
+                int(gribmessage.get("indicatorOfUnitOfTimeRange", 255))
+            ]
+            offset += int(gribmessage["P2"]) * unit
         elif timeRangeIndicator == 10:
             unit = time_range_units[
                 int(gribmessage.get("indicatorOfUnitOfTimeRange", 255))
