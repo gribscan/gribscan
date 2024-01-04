@@ -1,4 +1,5 @@
 import argparse
+import glob
 import json
 import textwrap
 from functools import partial
@@ -49,7 +50,16 @@ def build_dataset():
         "indices",
         metavar="GRIB.index",
         help="source index files (JSONLines)",
-        nargs="+",
+        nargs="*",
+    )
+    parser.add_argument(
+        "-g",
+        "--glob",
+        metavar="GLOB.index",
+        help="glob pattern to create list of index files (JSONLines)",
+        type=str,
+        nargs="?",
+        default=None,
     )
     parser.add_argument(
         "-o",
@@ -90,8 +100,20 @@ def build_dataset():
 
     magician = MAGICIANS[args.magician]()
 
+    if args.glob is None and not args.indices:
+        parser.error("You need to pass a glob pattern or a file list.")
+
+    if args.glob is not None and args.indices:
+        parser.error("It is not possible to pass a glob pattern and a file list.")
+
+    if args.glob is not None:
+        indices = glob.iglob(args.glob)
+
+    if args.indices:
+        indices = args.indices
+
     refs = gribscan.grib_magic(
-        args.indices, magician=magician, global_prefix=args.prefix
+        indices, magician=magician, global_prefix=args.prefix
     )
 
     for dataset, ref in refs.items():
