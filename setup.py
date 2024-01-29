@@ -16,6 +16,7 @@ setup(
         "eccodes",
         "numcodecs>=0.10.0",
         "numpy",
+        "scipy",
     ],
     extras_require={
         "docs": [
