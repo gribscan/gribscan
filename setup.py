@@ -14,6 +14,7 @@ setup(
     install_requires=[
         "cfgrib>=0.9.9.0",  # previous versions create a cffi error on index
         "eccodes",
+        "healpy",
         "numcodecs>=0.10.0",
         "numpy",
         "scipy",

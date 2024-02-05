@@ -1,3 +1,4 @@
+import healpy as hp
 import numpy as np
 from scipy.special import roots_legendre
 
@@ -65,6 +66,25 @@ class LatLonRegular(GribGrid):
         )
 
         return {"lon": lons.ravel(), "lat": lats.ravel()}
+
+
+class HEALPix(GribGrid):
+    gridType = "healpix"
+    params = [
+        "orderingConvention",
+        "Nside",
+    ]
+
+    @classmethod
+    def compute_coords(cls, orderingConvention, Nside):
+        lons, lats = hp.pix2ang(
+            nside=Nside,
+            ipix=np.arange(hp.nside2npix(Nside)),
+            nest=orderingConvention == "nested",
+            lonlat=True,
+        )
+
+        return {"lon": lons, "lat": lats}
 
 
 grids = {g.gridType: g for g in GribGrid._subclasses}
