@@ -36,17 +36,35 @@ class LatLonReduced(GribGrid):
 
 class LatLonRegular(GribGrid):
     gridType = "regular_ll"
-    params = ["Ni","Nj"]
+    params = [
+        "Ni",
+        "Nj",
+        "latitudeOfFirstGridPointInDegrees",
+        "longitudeOfFirstGridPointInDegrees",
+        "iDirectionIncrementInDegrees",
+        "jDirectionIncrementInDegrees",
+        "iScansNegatively",
+        "jScansPositively",
+    ]
 
     @classmethod
-    def compute_coords(cls, Ni, Nj):
-        row = np.linspace(0, 360, Ni, endpoint=False)
-        lons = np.repeat(row[np.newaxis,:], Nj, axis=0)
-        column = np.linspace(90, -90, Nj, endpoint=True)
-        lats = np.repeat(column[:,np.newaxis], Ni, axis=1)
-        print(lons)
-        print(lats)
-        return {"lon": lons.flatten(), "lat": lats.flatten()}
+    def compute_coords(cls, **kwargs):
+        Ni = kwargs["Ni"]
+        Nj = kwargs["Nj"]
+        iInc = kwargs["iDirectionIncrementInDegrees"]
+        jInc = kwargs["jDirectionIncrementInDegrees"]
+        lonFirst = kwargs["longitudeOfFirstGridPointInDegrees"]
+        latFirst = kwargs["latitudeOfFirstGridPointInDegrees"]
+
+        iInc = -iInc if kwargs["iScansNegatively"] else iInc
+        jInc = jInc if kwargs["jScansPositively"] else -jInc
+
+        lons, lats = np.meshgrid(
+            (lonFirst + np.arange(Ni) * iInc + 180) % 360 - 180,
+            latFirst + np.arange(Nj) * jInc,
+        )
+
+        return {"lon": lons.ravel(), "lat": lats.ravel()}
 
 
 grids = {g.gridType: g for g in GribGrid._subclasses}
