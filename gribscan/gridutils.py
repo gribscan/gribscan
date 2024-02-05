@@ -1,4 +1,3 @@
-import healpy as hp
 import numpy as np
 from scipy.special import roots_legendre
 
@@ -77,6 +76,8 @@ class HEALPix(GribGrid):
 
     @classmethod
     def compute_coords(cls, orderingConvention, Nside):
+        import healpy as hp
+
         lons, lats = hp.pix2ang(
             nside=Nside,
             ipix=np.arange(hp.nside2npix(Nside)),
