@@ -34,6 +34,39 @@ class LatLonReduced(GribGrid):
         return {"lon": lons, "lat": lats}
 
 
+class LatLonRegular(GribGrid):
+    gridType = "regular_ll"
+    params = [
+        "Ni",
+        "Nj",
+        "latitudeOfFirstGridPointInDegrees",
+        "longitudeOfFirstGridPointInDegrees",
+        "iDirectionIncrementInDegrees",
+        "jDirectionIncrementInDegrees",
+        "iScansNegatively",
+        "jScansPositively",
+    ]
+
+    @classmethod
+    def compute_coords(cls, **kwargs):
+        Ni = kwargs["Ni"]
+        Nj = kwargs["Nj"]
+        iInc = kwargs["iDirectionIncrementInDegrees"]
+        jInc = kwargs["jDirectionIncrementInDegrees"]
+        lonFirst = kwargs["longitudeOfFirstGridPointInDegrees"]
+        latFirst = kwargs["latitudeOfFirstGridPointInDegrees"]
+
+        iInc = -iInc if kwargs["iScansNegatively"] else iInc
+        jInc = jInc if kwargs["jScansPositively"] else -jInc
+
+        lons, lats = np.meshgrid(
+            (lonFirst + np.arange(Ni) * iInc + 180) % 360 - 180,
+            latFirst + np.arange(Nj) * jInc,
+        )
+
+        return {"lon": lons.ravel(), "lat": lats.ravel()}
+
+
 grids = {g.gridType: g for g in GribGrid._subclasses}
 
 
