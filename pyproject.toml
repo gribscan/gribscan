@@ -1,0 +1,47 @@
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gribscan"
+authors = [
+    {name = "Tobias Kölling"},
+    {name = "Lukas Kluft"},
+    {name = "Thomas Rackow"},
+]
+description="Create indices for GRIB files and provide an xarray interface."
+readme = "README.md"
+keywords = ["fsspec", "grib", "zarr"]
+license = {file = "LICENSE"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+]
+dependencies = [
+    "cfgrib>=0.9.9.0",  # previous versions create a cffi error on index
+    "eccodes",
+    "numcodecs>=0.10.0",
+    "numpy",
+    "scipy",
+]
+dynamic = ["version"]
+
+[project.optional-dependencies]
+docs = [
+    "sphinx",
+    "myst-parser",
+    "sphinx-diagrams",
+    "sphinx-book-theme",
+]
+
+[project.scripts]
+gribscan-index = "gribscan.tools:create_index"
+gribscan-build = "gribscan.tools:build_dataset"
+
+[project.entry-points."numcodecs.codecs"]
+rawgrib = "gribscan.rawgribcodec:RawGribCodec"
+"gribscan.rawgrib" = "gribscan.rawgribcodec:RawGribCodec"
+aec = "gribscan.aeccodec:AECCodec"
+
+
+[tool.setuptools_scm]
+write_to = "gribscan/_version.py"
