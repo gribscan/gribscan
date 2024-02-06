@@ -11,7 +11,7 @@ authors:
   given-names: "Thomas"
   orcid: "https://orcid.org/0000-0002-5468-575X"
 title: "gribscan"
-abstract: "Create indices for GRIB files and provide an xarray interface.",
+abstract: "Create indices for GRIB files and provide an xarray interface."
 url: "https://gribscan.readthedocs.io"
 repository-code: "https://github.com/gribscan/gribscan"
 keywords:
@@ -19,5 +19,4 @@ keywords:
   - grib
   - zarr
 license: MIT
-repository-code: "https://github.com/gribscan/gribscan"
 type: software
