@@ -348,10 +348,13 @@ def write_index(gribfile, idxfile=None, outdir=None, force=False):
     # collapse the "/./" notation used to denote subtrees.
     gen = scan_gribfile(open(p, "rb"), filename=gribfile)
 
-    with open(idxfile, "w" if force else "x") as output_file:
+    tempfile = idxfile.with_suffix(".index.partial")
+    with open(tempfile, "w" if force else "x") as output_file:
         for record in gen:
             json.dump(record, output_file)
             output_file.write("\n")
+
+    tempfile.rename(idxfile)
 
 
 def parse_index(indexfile, m2key, duplicate="replace"):
