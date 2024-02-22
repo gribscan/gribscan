@@ -349,12 +349,13 @@ def write_index(gribfile, idxfile=None, outdir=None, force=False):
     gen = scan_gribfile(open(p, "rb"), filename=gribfile)
 
     tempfile = idxfile.with_suffix(".index.partial")
-    with open(tempfile, "w" if force else "x") as output_file:
+    with open(tempfile, "w") as output_file:
         for record in gen:
             json.dump(record, output_file)
             output_file.write("\n")
 
-    tempfile.rename(idxfile)
+    if force or not idxfile.exists():
+        tempfile.rename(idxfile)
 
 
 def parse_index(indexfile, m2key, duplicate="replace"):
