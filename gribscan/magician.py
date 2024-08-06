@@ -140,7 +140,19 @@ class IFSMagician(MagicianBase):
         )
 
 
+class EnsembleMagician(IFSMagician):
+    varkeys = "param", "levtype"
+    dimkeys = "posix_time", "level", "member"
+
+    def m2dataset(self, meta):
+        if meta["member"] is None:
+            return "prob"
+        if meta["attrs"]["typeOfLevel"].startswith("isobaricInhPa"):
+            return "atm3d"
+        return "atm2d"
+
 MAGICIANS = {
     "monsoon": Magician,
     "ifs": IFSMagician,
+    "enfo": EnsembleMagician,
 }
