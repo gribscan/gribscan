@@ -350,6 +350,9 @@ def write_index(gribfile, idxfile=None, outdir=None, force=False):
     if idxfile is None:
         idxfile = pathlib.Path(outdir) / (p.stem + ".index")
 
+    if idxfile.exists() and not force:
+        raise FileExistsError(f"Index file {idxfile} already exists!")
+
     # We need to use the gribfile (str) variable because Path() objects
     # collapse the "/./" notation used to denote subtrees.
     gen = scan_gribfile(open(p, "rb"), filename=gribfile)
@@ -362,6 +365,8 @@ def write_index(gribfile, idxfile=None, outdir=None, force=False):
 
     if force or not idxfile.exists():
         tempfile.rename(idxfile)
+    else:
+        logger.warning(f"Index file {idxfile} got created during runtime.")
 
 
 def parse_index(indexfile, m2key, duplicate="replace"):
