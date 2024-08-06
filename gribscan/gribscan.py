@@ -97,6 +97,10 @@ def _split_file(f, skip=0):
             start = find_stream(f, b"GRIB")
             indicator = f.peek(16)
         if len(indicator) < 16:
+            indicator = f.read(16)
+            f.seek(start)
+        if len(indicator) < 16:
+            logger.info(f"couldn't peek or seek indicator, assuming end of file at {start}")
             return
 
         grib_edition = indicator[7]
