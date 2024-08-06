@@ -362,6 +362,8 @@ def write_index(gribfile, idxfile=None, outdir=None, force=False):
 
     if force or not idxfile.exists():
         tempfile.rename(idxfile)
+    else:
+        raise FileExistsError(f"Index file {idxfile} already exists!")
 
 
 def parse_index(indexfile, m2key, duplicate="replace"):
