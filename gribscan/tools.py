@@ -1,6 +1,7 @@
 import argparse
 import glob
 import json
+import logging
 import textwrap
 from functools import partial
 from pathlib import Path
@@ -13,6 +14,12 @@ from .magician import MAGICIANS
 def create_index():
     parser = argparse.ArgumentParser()
     parser.add_argument("sources", metavar="GRIB", help="source gribfile(s)", nargs="+")
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        help="increase the logging level",
+        action="store_true",
+    )
     parser.add_argument(
         "-o",
         "--outdir",
@@ -37,6 +44,10 @@ def create_index():
     )
     args = parser.parse_args()
 
+    logging.basicConfig()
+    if args.verbose:
+        logging.getLogger().setLevel(logging.DEBUG)
+
     mapfunc = partial(gribscan.write_index, outdir=args.outdir, force=args.force)
     with mp.Pool(args.nprocs) as pool:
         pool.map(mapfunc, args.sources)
@@ -45,6 +56,12 @@ def create_index():
 def build_dataset():
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawTextHelpFormatter,
+    )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        help="increase the logging level",
+        action="store_true",
     )
     parser.add_argument(
         "indices",
@@ -97,6 +114,10 @@ def build_dataset():
         type=str,
     )
     args = parser.parse_args()
+
+    logging.basicConfig()
+    if args.verbose:
+        logging.getLogger().setLevel(logging.DEBUG)
 
     magician = MAGICIANS[args.magician]()
 
