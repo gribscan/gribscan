@@ -88,6 +88,8 @@ def _split_file(f, skip=0):
         f.seek(0)
     part = 0
 
+    logger.debug(f"reading GRIB file with size {size}")
+
     while f.tell() < size:
         logger.debug(f"extract part {part + 1}")
         start = f.tell()
