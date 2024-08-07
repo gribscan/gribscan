@@ -145,11 +145,20 @@ class EnsembleMagician(IFSMagician):
     dimkeys = "posix_time", "level", "member"
 
     def m2dataset(self, meta):
+        """Divide datasets based on the IFS ensemble products description.
+
+        Reference:
+          https://www.ecmwf.int/en/forecasts/datasets/open-data#ensemble-products
+        """
         if meta["member"] is None:
-            return "prob"
+            if meta["attrs"]["shortName"] in ("gh", "t", "ws", "msl"):
+                return "ensmean"
+            else:
+                return "prob"
         if meta["attrs"]["typeOfLevel"].startswith("isobaricInhPa"):
             return "atm3d"
         return "atm2d"
+
 
 MAGICIANS = {
     "monsoon": Magician,
