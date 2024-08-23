@@ -321,6 +321,7 @@ def scan_gribfile(filelike, **kwargs):
             "posix_time": m["time"] + get_time_offset(m),
             "domain": m["globalDomain"],
             "member": m.get("number", None),
+            "realization": m.get("realization", None),
             "time": f"{m['hour']:02d}{m['minute']:02d}",
             "date": f"{m['year']:04d}{m['month']:02d}{m['day']:02d}",
             "levtype": m.get("typeOfLevel", None),
