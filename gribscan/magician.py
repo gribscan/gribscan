@@ -150,8 +150,8 @@ class IFSMagicianEERIE(IFSMagician):
     - makes ensemble "realization" axis (for "ed" class requires eccodes >= 2.36.1)
     '''
 
-    dimkeys = "referenceTime", "level", "realization"
-    # dimkeys = "posix_time", "level", "realization"
+    # dimkeys = "referenceTime", "level", "realization"
+    dimkeys = "posix_time", "level", "realization"
 
     def coords_hook(self, name, coords):
         dims = [name]
