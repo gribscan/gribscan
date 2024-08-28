@@ -163,7 +163,6 @@ class IFSMagicianEERIE(IFSMagician):
                 "calendar": "proleptic_gregorian",
             }
         elif name == "realization":
-            # dims = ["value"]
             attrs = {
                 "long_name": "realization",
                 "units": "",

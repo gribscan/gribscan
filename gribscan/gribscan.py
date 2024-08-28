@@ -296,14 +296,14 @@ def get_time_offset(gribmessage, lean_towards="end"):
             elif int(offseti_h/24) in [28,29,30,31]:
                 print('TimeRange: monthly. Set time to 12:00 at 15th of the month by adding an offset of 14.5 days')
                 offset += int(86400 * ( 14 + 1/2) )
-            # elif offseti_h == 6:
             elif offseti_h < 24:
                 print('TimeRange: %i-hourly. Set time to middle of the interval by adding an offset of %.1f hours' % (offseti_h,offseti_h/2))
                 offset += int(3600 * offseti_h / 2)
             else:
-                # raise ValueError('Trying to execute lean_towards="mid", but finding unexpected period length of %i days' % offseti_day)
-                raise ValueError('Trying to execute lean_towards="mid", but finding unexpected period length of %i hours. stepType: %s, step: %s, stepRange: %s' % (
-                    offseti_h,gribmessage['stepType'],gribmessage['step'],gribmessage['stepRange'])
+                raise ValueError(
+                    'Trying to execute lean_towards="mid", but finding unexpected period length of %i hours. stepType: %s, step: %s, stepRange: %s' % (
+                        offseti_h,gribmessage['stepType'],gribmessage['step'],gribmessage['stepRange']
+                        )
                     )
         if options["timeRange"] and lean_towards == "start":
             # print("timeRange, lean to start")
@@ -319,7 +319,6 @@ def arrays_to_list(o):
         return o
 
 
-# def scan_gribfile(filelike, **kwargs):
 def scan_gribfile(filelike, lean_towards='end', **kwargs):
     for offset, size, grib_edition, data in _split_file(filelike):
         mid = eccodes.codes_new_from_message(data)
@@ -348,7 +347,6 @@ def scan_gribfile(filelike, lean_towards='end', **kwargs):
                 for k in ["discipline", "parameterCategory", "parameterNumber"]
             },
             "posix_time": m["time"] + get_time_offset(m,lean_towards=lean_towards),
-            # "posix_time": m["time"] + get_time_offset(m),
             "domain": m["globalDomain"],
             "member": m.get("number", None),
             "realization": m.get("realization", None),
@@ -374,9 +372,7 @@ def scan_gribfile(filelike, lean_towards='end', **kwargs):
         }
 
 
-# def write_index(gribfile, idxfile=None, outdir=None, force=False):
 def write_index(gribfile, idxfile=None, outdir=None, force=False, lean_towards='end'):
-    print(gribfile)
     p = pathlib.Path(gribfile)
     if outdir is None:
         outdir = p.parent
@@ -390,7 +386,6 @@ def write_index(gribfile, idxfile=None, outdir=None, force=False, lean_towards='
     # We need to use the gribfile (str) variable because Path() objects
     # collapse the "/./" notation used to denote subtrees.
     gen = scan_gribfile(open(p, "rb"), lean_towards=lean_towards, filename=gribfile)
-    # gen = scan_gribfile(open(p, "rb"), filename=gribfile)
 
     tempfile = idxfile.with_suffix(".index.partial")
     with open(tempfile, "w") as output_file:

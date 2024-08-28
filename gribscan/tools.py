@@ -57,7 +57,6 @@ def create_index():
         logging.getLogger().setLevel(logging.DEBUG)
 
     mapfunc = partial(gribscan.write_index, outdir=args.outdir, force=args.force, lean_towards=args.lean_towards)
-    # mapfunc = partial(gribscan.write_index, outdir=args.outdir, force=args.force)
     with mp.Pool(args.nprocs) as pool:
         pool.map(mapfunc, args.sources)
 
