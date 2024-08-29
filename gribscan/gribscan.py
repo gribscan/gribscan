@@ -273,35 +273,35 @@ def get_time_offset(gribmessage, lean_towards="end"):
         except KeyError:
             return offset
         if options["forcastTime"]:
-            # print("forcastTime")
+            logger.info("forcastTime")
             unit = time_range_units[
                 int(gribmessage.get("indicatorOfUnitOfTimeRange", 255))
             ]
             offset += gribmessage.get("forecastTime", 0) * unit
         if options["timeRange"] and lean_towards == "end":
-            # print("timeRange, lean to end")
+            logger.info("timeRange, lean to end")
             unit = time_range_units[
                 int(gribmessage.get("indicatorOfUnitOfTimeRange", 255))
             ]
             offset += gribmessage.get("lengthOfTimeRange", 0) * unit
         if options["timeRange"] and lean_towards == "mid":
-            # print("timeRange, lean to mid")
+            logger.info("timeRange, lean to mid")
             unit = time_range_units[
                 int(gribmessage.get("indicatorOfUnitOfTimeRange", 255))
             ]
             offseti = gribmessage.get("lengthOfTimeRange", 0) * unit
             offseti_h = offseti / 3600
             if offseti_h < 24:
-                print('TimeRange: %.1f-hourly. Set time to middle of the interval by adding an offset of %.1f hours' % (offseti_h,offseti_h/2))
+                logger.info('TimeRange: %.1f-hourly. Set time to middle of the interval by adding an offset of %.1f hours' % (offseti_h,offseti_h/2))
                 offset += int(3600 * offseti_h / 2)
             elif offseti_h == 24:
-                print('TimeRange: daily. Set time to 12:00 by adding an offset of 12 hours')
+                logger.info('TimeRange: daily. Set time to 12:00 by adding an offset of 12 hours')
                 offset += int(3600 * 12)
             elif int(offseti_h/24) in [28,29,30,31]:
-                print('TimeRange: monthly. Set time to 12:00 at 15th of the month by adding an offset of 14.5 days')
+                logger.info('TimeRange: monthly. Set time to 12:00 at 15th of the month by adding an offset of 14.5 days')
                 offset += int(86400 * ( 14 + 1/2) )
             elif int(offseti_h/24) in [365,366]:
-                print('TimeRange: annual. Set time to 12:00 at 1st of July by removing an offset of 183.5 days from the end of the interval')
+                logger.info('TimeRange: annual. Set time to 12:00 at 1st of July by removing an offset of 183.5 days from the end of the interval')
                 offset += offseti - int(86400 * ( 183 + 1/2) )
             else:
                 raise ValueError(
@@ -310,7 +310,7 @@ def get_time_offset(gribmessage, lean_towards="end"):
                         )
                     )
         if options["timeRange"] and lean_towards == "start":
-            # print("timeRange, lean to start")
+            logger.info("timeRange, lean to start")
             # do nothing, offset is already at the start
             offset += 0
     return offset
