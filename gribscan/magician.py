@@ -148,7 +148,7 @@ class IFSMagicianEERIE(IFSMagician):
         - Time-processing by stepType (instant/accum/avg/min/max). 
         - Constant fields of surface geopotential & land-sea mask go into "atm2d_const.json".
         - Output on wave model (WAM) native grid (pre 49r1) goes into separate jsons with additional "_ll" suffix.
-    - This is intended to be used together with the n3ew get_time_offset option "mid", 
+    - This is intended to be used together with the new get_time_offset option "mid", 
         such that stepRange-based variables are now located towards the CENTER of the stepRange.
     '''
 
