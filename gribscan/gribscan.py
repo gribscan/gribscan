@@ -96,7 +96,9 @@ def _split_file(f, skip=0):
         indicator = f.peek(16)
         if indicator[:4] != b"GRIB":
             logger.info(f"non-consecutive messages, searching for part {part + 1}")
-            start = find_stream(f, b"GRIB")
+            if (start := find_stream(f, b"GRIB")) is None:
+                # Handle non-GRIB data after the last GRIB message in a file
+                return
             indicator = f.peek(16)
         if len(indicator) < 16:
             indicator = f.read(16)
