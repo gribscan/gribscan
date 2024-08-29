@@ -153,6 +153,14 @@ class IFSMagicianEERIE(IFSMagician):
     # dimkeys = "referenceTime", "level", "realization"
     dimkeys = "posix_time", "level", "realization"
 
+    def globals_hook(self, global_attrs):
+        history = global_attrs.get("history", "")
+        if len(history) > 0 and not history.endswith("\n"):
+            history = history + "\r\n"
+        history += "🪄🧙‍♂️🔮 magic dataset assembly provided by gribscan.IFSMagicianEERIE\r\n"
+        history += "created {today}\r\n".format(today=np.datetime64('today'))
+        return {**global_attrs, "history": history}
+
     def coords_hook(self, name, coords):
         dims = [name]
         attrs = {}
