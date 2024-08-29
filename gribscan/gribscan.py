@@ -290,15 +290,18 @@ def get_time_offset(gribmessage, lean_towards="end"):
             ]
             offseti = gribmessage.get("lengthOfTimeRange", 0) * unit
             offseti_h = offseti / 3600
-            if offseti_h == 24:
+            if offseti_h < 24:
+                print('TimeRange: %.1f-hourly. Set time to middle of the interval by adding an offset of %.1f hours' % (offseti_h,offseti_h/2))
+                offset += int(3600 * offseti_h / 2)
+            elif offseti_h == 24:
                 print('TimeRange: daily. Set time to 12:00 by adding an offset of 12 hours')
                 offset += int(3600 * 12)
             elif int(offseti_h/24) in [28,29,30,31]:
                 print('TimeRange: monthly. Set time to 12:00 at 15th of the month by adding an offset of 14.5 days')
                 offset += int(86400 * ( 14 + 1/2) )
-            elif offseti_h < 24:
-                print('TimeRange: %i-hourly. Set time to middle of the interval by adding an offset of %.1f hours' % (offseti_h,offseti_h/2))
-                offset += int(3600 * offseti_h / 2)
+            elif int(offseti_h/24) in [365,366]:
+                print('TimeRange: annual. Set time to 12:00 at 1st of July by removing an offset of 183.5 days from the end of the interval')
+                offset += offseti - int(86400 * ( 183 + 1/2) )
             else:
                 raise ValueError(
                     'Trying to execute lean_towards="mid", but finding unexpected period length of %i hours. stepType: %s, step: %s, stepRange: %s' % (
