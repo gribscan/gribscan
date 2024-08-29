@@ -135,6 +135,7 @@ EXTRA_PARAMETERS = [
     "productDefinitionTemplateNumber",
     "N",
     "timeRangeIndicator",
+    "stepRange",
     "P1",
     "P2",
     "numberIncludedInAverage",
@@ -521,6 +522,7 @@ def build_refs(messages, global_attrs, coords, varinfo, magician):
         refs[info["name"] + "/.zattrs"] = json.dumps(
             {
                 **info["attrs"],
+                **info["extra"],
                 "_ARRAY_DIMENSIONS": list(info["dims"]) + list(info["data_dims"]),
             }
         )
