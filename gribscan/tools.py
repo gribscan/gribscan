@@ -45,7 +45,7 @@ def create_index():
     parser.add_argument(
         "-l",
         "--lean_towards",
-        help="Convention for time alignment for TimeRange",
+        help="Convention for time alignment for TimeRange: start/end/mid, default: end",
         type=str,
         default='end',
         nargs="?",

@@ -224,6 +224,15 @@ def get_time_offset(gribmessage, lean_towards="end"):
     """Calculate time offset based on GRIB definition.
 
     See: https://codes.ecmwf.int/grib/format/grib1/ctable/5/
+
+    For GRIB2 output, lean_towards now supports "start", "end" and "mid"
+    - "start": use offset=0, timestamp is at the beginning of the period (mean over January 2020 is at 2020-01-01 00:00)
+    - "end": use offset=<length_of_period>, timestamp is at the end of the period (mean over January 2020 is at 2020-02-01 00:00)
+    - "mid": timestamp is *near* the center of the period, depending on its length:
+      - annual: timestamp is on July 1st, 12:00 
+      - monthly: timestamp is on the 15th, 12:00
+      - daily: timestamp is at 12:00
+      - sub-daily: timestamp is at the center of the period (e.g. 6-hourly means for the period 00:00-06:00 is at 03:00)
     """
     offset = 0  # np.timedelta64(0, "s")
     edition = int(gribmessage["editionNumber"])
@@ -278,41 +287,44 @@ def get_time_offset(gribmessage, lean_towards="end"):
                 int(gribmessage.get("indicatorOfUnitOfTimeRange", 255))
             ]
             offset += gribmessage.get("forecastTime", 0) * unit
-        if options["timeRange"] and lean_towards == "end":
-            logger.info("timeRange, lean to end")
-            unit = time_range_units[
-                int(gribmessage.get("indicatorOfUnitOfTimeRange", 255))
-            ]
-            offset += gribmessage.get("lengthOfTimeRange", 0) * unit
-        if options["timeRange"] and lean_towards == "mid":
-            logger.info("timeRange, lean to mid")
-            unit = time_range_units[
-                int(gribmessage.get("indicatorOfUnitOfTimeRange", 255))
-            ]
-            offseti = gribmessage.get("lengthOfTimeRange", 0) * unit
-            offseti_h = offseti / 3600
-            if offseti_h < 24:
-                logger.info('TimeRange: %.1f-hourly. Set time to middle of the interval by adding an offset of %.1f hours' % (offseti_h,offseti_h/2))
-                offset += int(3600 * offseti_h / 2)
-            elif offseti_h == 24:
-                logger.info('TimeRange: daily. Set time to 12:00 by adding an offset of 12 hours')
-                offset += int(3600 * 12)
-            elif int(offseti_h/24) in [28,29,30,31]:
-                logger.info('TimeRange: monthly. Set time to 12:00 at 15th of the month by adding an offset of 14.5 days')
-                offset += int(86400 * ( 14 + 1/2) )
-            elif int(offseti_h/24) in [365,366]:
-                logger.info('TimeRange: annual. Set time to 12:00 at 1st of July by removing an offset of 183.5 days from the end of the interval')
-                offset += offseti - int(86400 * ( 183 + 1/2) )
+
+        if options["timeRange"]:
+            logger.info("timeRange")
+            if lean_towards == "start":
+                logger.info("timeRange, lean to start")
+                # do nothing, offset is already at the start
+                offset += 0
+            elif lean_towards == "end":
+                logger.info("timeRange, lean to end")
+                unit = time_range_units[
+                    int(gribmessage.get("indicatorOfUnitOfTimeRange", 255))
+                ]
+                offset += gribmessage.get("lengthOfTimeRange", 0) * unit
+            elif lean_towards == "mid":
+                logger.info("timeRange, lean to mid")
+                unit = time_range_units[
+                    int(gribmessage.get("indicatorOfUnitOfTimeRange", 255))
+                ]
+                offseti = gribmessage.get("lengthOfTimeRange", 0) * unit
+                offseti_h = offseti / 3600
+                if offseti_h < 24:
+                    logger.info('TimeRange: %.1f-hourly. Set time to middle of the interval by adding an offset of %.1f hours' % (offseti_h,offseti_h/2))
+                    offset += int(3600 * offseti_h / 2)
+                elif offseti_h == 24:
+                    logger.info('TimeRange: daily. Set time to 12:00 by adding an offset of 12 hours')
+                    offset += int(3600 * 12)
+                elif int(offseti_h/24) in [28,29,30,31]:
+                    logger.info('TimeRange: monthly. Set time to 12:00 at 15th of the month by adding an offset of 14.5 days')
+                    offset += int(86400 * ( 14 + 1/2) )
+                elif int(offseti_h/24) in [365,366]:
+                    logger.info('TimeRange: annual. Set time to 12:00 at 1st of July by removing an offset of 183.5 days from the end of the interval')
+                    offset += offseti - int(86400 * ( 183 + 1/2) )
+                else:
+                    raise ValueError(
+                        'Trying to execute lean_towards="mid", but finding unexpected period length of %i hours. stepType: %s, step: %s, stepRange: %s' % (
+                            offseti_h,gribmessage['stepType'],gribmessage['step'],gribmessage['stepRange']))
             else:
-                raise ValueError(
-                    'Trying to execute lean_towards="mid", but finding unexpected period length of %i hours. stepType: %s, step: %s, stepRange: %s' % (
-                        offseti_h,gribmessage['stepType'],gribmessage['step'],gribmessage['stepRange']
-                        )
-                    )
-        if options["timeRange"] and lean_towards == "start":
-            logger.info("timeRange, lean to start")
-            # do nothing, offset is already at the start
-            offset += 0
+                raise ValueError('Unexpected option for lean_towards: %s' % lean_towards)
     return offset
 
 
