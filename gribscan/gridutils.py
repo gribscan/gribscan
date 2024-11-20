@@ -88,6 +88,15 @@ class HEALPix(GribGrid):
         return {"lon": lons, "lat": lats}
 
 
+class SphericalHarmonics(GribGrid):
+    gridType = "sh"
+    params = []
+
+    @classmethod
+    def compute_coords(cls):
+        return {}
+
+
 grids = {g.gridType: g for g in GribGrid._subclasses}
 
 
