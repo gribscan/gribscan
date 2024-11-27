@@ -42,13 +42,21 @@ def create_index():
         default=1,
         nargs="?",
     )
+    parser.add_argument(
+        "-l",
+        "--lean_towards",
+        help="Convention for time alignment for TimeRange: start/end/mid, default: end",
+        type=str,
+        default='end',
+        nargs="?",
+    )
     args = parser.parse_args()
 
     logging.basicConfig()
     if args.verbose:
         logging.getLogger().setLevel(logging.DEBUG)
 
-    mapfunc = partial(gribscan.write_index, outdir=args.outdir, force=args.force)
+    mapfunc = partial(gribscan.write_index, outdir=args.outdir, force=args.force, lean_towards=args.lean_towards)
     with mp.Pool(args.nprocs) as pool:
         pool.map(mapfunc, args.sources)
 
