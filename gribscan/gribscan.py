@@ -343,7 +343,7 @@ def scan_gribfile(filelike, **kwargs):
             **kwargs,
         }
 
-        if (param := m.get("shortName")) != "unknown":
+        if (param := m.get("shortName", "unknown")) != "unknown":
             idx["param"] = param
         else:
             idx["param"] = ".".join(map(str, idx["parameter_code"].values()))
