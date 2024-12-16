@@ -309,7 +309,7 @@ def scan_gribfile(filelike, **kwargs):
             except eccodes.KeyValueNotFoundError:
                 pass
 
-        yield {
+        idx = {
             "globals": global_attrs,
             "attrs": {
                 k: m.get(k, None)
@@ -327,7 +327,6 @@ def scan_gribfile(filelike, **kwargs):
             "date": f"{m['year']:04d}{m['month']:02d}{m['day']:02d}",
             "levtype": m.get("typeOfLevel", None),
             "level": m.get("level", None),
-            "param": m.get("shortName", None),
             "type": m.get("dataType", None),
             "referenceTime": m["time"],
             "step": m["step"],
@@ -343,6 +342,13 @@ def scan_gribfile(filelike, **kwargs):
             },
             **kwargs,
         }
+
+        if (param := m.get("shortName")) != "unknown":
+            idx["param"] = param
+        else:
+            idx["param"] = ".".join(map(str, idx["parameter_code"].values()))
+
+        yield idx
 
 
 def write_index(gribfile, idxfile=None, outdir=None, force=False):
