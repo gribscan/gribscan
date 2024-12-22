@@ -282,7 +282,10 @@ def get_time_offset(gribmessage, lean_towards="end"):
             unit = time_range_units[
                 int(gribmessage.get("indicatorOfUnitOfTimeRange", 255))
             ]
-            offset += gribmessage.get("lengthOfTimeRange", 0) * unit
+            length = gribmessage.get("lengthOfTimeRange", 0)
+            if isinstance(length, np.ndarray):
+                length = int(length[-1])
+            offset += length * unit
     return offset
 
 
