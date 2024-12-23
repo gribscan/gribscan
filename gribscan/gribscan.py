@@ -278,11 +278,17 @@ def get_time_offset(gribmessage, lean_towards="end"):
                 int(gribmessage.get("indicatorOfUnitOfTimeRange", 255))
             ]
             offset += gribmessage.get("forecastTime", 0) * unit
-        if options["timeRange"] and lean_towards == "end":
+        if options["timeRange"]:
             unit = time_range_units[
                 int(gribmessage.get("indicatorOfUnitOfTimeRange", 255))
             ]
-            offset += gribmessage.get("lengthOfTimeRange", 0) * unit
+            length = gribmessage.get("lengthOfTimeRange", 0)
+            if isinstance(length, np.ndarray):
+                if lean_towards == "start":
+                    length = int(length[0])
+                elif lean_towards == "end":
+                    length = int(length[-1])
+            offset += length * unit
     return offset
 
 
