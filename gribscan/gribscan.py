@@ -363,7 +363,11 @@ def write_index(gribfile, idxfile=None, outdir=None, force=False):
         outdir = p.parent
 
     if idxfile is None:
-        idxfile = pathlib.Path(outdir) / (p.stem + ".index")
+        # Replace GRIB suffixes but append to all others (e.g. `fcst_phy2m.202410`).
+        suffix_map = {s: ".index" for s in (".grib", ".grb", ".grib2", ".grb2")}
+        idxfile = pathlib.Path(outdir) / (
+            p.with_suffix(suffix_map.get(p.suffix, p.suffix + ".index")).name
+        )
 
     if idxfile.exists() and not force:
         raise FileExistsError(f"Index file {idxfile} already exists!")
