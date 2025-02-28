@@ -40,7 +40,6 @@ gribscan-build = "gribscan.tools:build_dataset"
 [project.entry-points."numcodecs.codecs"]
 rawgrib = "gribscan.rawgribcodec:RawGribCodec"
 "gribscan.rawgrib" = "gribscan.rawgribcodec:RawGribCodec"
-aec = "gribscan.aeccodec:AECCodec"
 
 
 [tool.setuptools_scm]
