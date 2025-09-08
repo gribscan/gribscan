@@ -22,6 +22,20 @@ class GaussianReduced(GribGrid):
         return {"lon": lons, "lat": lats}
 
 
+class GaussianRegular(GribGrid):
+    gridType = "regular_gg"
+    params = ["N"]
+
+    @classmethod
+    def compute_coords(cls, N):
+        lats = np.rad2deg(-np.arcsin(roots_legendre(2 * N)[0]))
+        lons = np.linspace(0, 360, 4 * N, endpoint=False)
+
+        lons, lats = np.meshgrid(lons, lats)
+
+        return {"lon": lons.ravel(), "lat": lats.ravel()}
+
+
 class LatLonReduced(GribGrid):
     gridType = "reduced_ll"
     params = ["pl"]
