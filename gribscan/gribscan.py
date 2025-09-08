@@ -8,6 +8,7 @@ from collections import defaultdict
 import cfgrib
 import eccodes
 import numpy as np
+import xarray as xr
 
 from .magician import Magician
 from . import gridutils as gu
@@ -459,12 +460,19 @@ def inspect_grib_indices(messages, magician):
             "shape": shape,
             "dim_id": dim_id,
             "coords": tuple(coords_by_key[varkey][i] for i in dim_id),
-            "data_shape": [size_by_key[varkey]],
-            "data_dims": ["cell"],
             "dtype": dtype_by_key[varkey],
             "attrs": attrs_by_key[varkey],
             "extra": extra_by_key[varkey],
         }
+
+        computed_coords = gu.varinfo2coords(info)
+
+        info = {
+            **info,
+            "data_dims": list(computed_coords.dims),
+            "data_shape": [computed_coords.sizes[d] for d in computed_coords.dims],
+        }
+
         varinfo[varkey] = {
             **info,
             **magician.variable_hook(varkey, info),
@@ -476,7 +484,15 @@ def inspect_grib_indices(messages, magician):
             coords[dim] |= cs
 
     coords = {
-        **{k: list(sorted(c)) for k, c in coords.items()},
+        **{
+            k: xr.DataArray(
+                np.asarray(list(sorted(c))),
+                dims=(k,),
+                attrs=gu.default_attrs.get(k, {}),
+            )
+            for k, c in coords.items()
+        },
+        **computed_coords.variables,
         **magician.extra_coords(varinfo),
     }
 
@@ -484,7 +500,9 @@ def inspect_grib_indices(messages, magician):
 
 
 def build_refs(messages, global_attrs, coords, varinfo, magician):
-    coords_inv = {k: {v: i for i, v in enumerate(vs)} for k, vs in coords.items()}
+    coords_inv = {
+        k: {v: i for i, v in enumerate(vs.values)} for k, vs in coords.items()
+    }
 
     refs = {}
     for msg in messages:
@@ -526,27 +544,26 @@ def build_refs(messages, global_attrs, coords, varinfo, magician):
         )
 
     for name, cs in coords.items():
-        cs = np.asarray(cs)
-        attrs, cs, array_meta, dims, compressor = magician.coords_hook(name, cs)
+        cs, array_meta, compressor = magician.coords_hook(name, cs)
 
         if compressor is None:
             compressor_id = None
-            data = bytes(cs)
+            data = bytes(cs.values)
         else:
             compressor_id = compressor.get_config()
-            data = bytes(compressor.encode(cs))
+            data = bytes(compressor.encode(cs.values))
 
-        refs[f"{name}/.zattrs"] = json.dumps({**attrs, "_ARRAY_DIMENSIONS": dims})
+        refs[f"{name}/.zattrs"] = json.dumps({**cs.attrs, "_ARRAY_DIMENSIONS": cs.dims})
         refs[f"{name}/.zarray"] = json.dumps(
             {
                 **{
-                    "chunks": [cs.size],
+                    "chunks": list(cs.shape),
                     "compressor": compressor_id,
                     "dtype": cs.dtype.str,
                     "fill_value": None,
                     "filters": [],
                     "order": "C",
-                    "shape": [cs.size],
+                    "shape": list(cs.shape),
                     "zarr_format": 2,
                 },
                 **array_meta,

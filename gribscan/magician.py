@@ -59,14 +59,7 @@ class Magician(MagicianBase):
         }
 
     def coords_hook(self, name, coords):
-        if "time" in name:
-            attrs = {
-                "units": "seconds since 1970-01-01T00:00:00",
-                "calendar": "proleptic_gregorian",
-            }
-        else:
-            attrs = {}
-        return attrs, coords, {}, [name], None
+        return coords, {}, None
 
 
 class IFSMagician(MagicianBase):
@@ -95,7 +88,6 @@ class IFSMagician(MagicianBase):
         return {
             "dims": dims,
             "name": name,
-            "data_dims": ["value"],
             "attrs": {
                 **info["attrs"],
                 "coordinates": "lon lat",
@@ -104,33 +96,8 @@ class IFSMagician(MagicianBase):
         }
 
     def coords_hook(self, name, coords):
-        dims = [name]
-        attrs = {}
         compressor = numcodecs.Blosc("zstd")
-        if "time" in name:
-            attrs = {
-                "units": "seconds since 1970-01-01T00:00:00",
-                "calendar": "proleptic_gregorian",
-            }
-        elif name == "lat":
-            dims = ["value"]
-            attrs = {
-                "long_name": "latitude",
-                "units": "degrees_north",
-                "standard_name": "latitude",
-            }
-        elif name == "lon":
-            dims = ["value"]
-            attrs = {
-                "long_name": "longitude",
-                "units": "degrees_east",
-                "standard_name": "longitude",
-            }
-        return attrs, coords, {}, dims, compressor
-
-    def extra_coords(self, varinfo):
-        v0 = next(iter(varinfo.values()))
-        return varinfo2coords(v0)
+        return coords, {}, compressor
 
     def m2dataset(self, meta):
         return (

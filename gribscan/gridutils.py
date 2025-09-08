@@ -1,5 +1,24 @@
 import numpy as np
+import xarray as xr
 from scipy.special import roots_legendre
+
+
+default_attrs = {
+    "lat": {
+        "long_name": "latitude",
+        "units": "degrees_north",
+        "standard_name": "latitude",
+    },
+    "lon": {
+        "long_name": "longitude",
+        "units": "degrees_east",
+        "standard_name": "longitude",
+    },
+    "time": {
+        "units": "seconds since 1970-01-01T00:00:00",
+        "calendar": "proleptic_gregorian",
+    },
+}
 
 
 class GribGrid:
@@ -19,7 +38,13 @@ class GaussianReduced(GribGrid):
         lons = np.concatenate([np.linspace(0, 360, nl, endpoint=False) for nl in pl])
         single_lats = np.rad2deg(-np.arcsin(roots_legendre(len(pl))[0]))
         lats = np.concatenate([[lat] * nl for nl, lat in zip(pl, single_lats)])
-        return {"lon": lons, "lat": lats}
+
+        return xr.Dataset(
+            coords={
+                "lat": (("value",), lats, default_attrs["lat"]),
+                "lon": (("value",), lons, default_attrs["lon"]),
+            }
+        )
 
 
 class GaussianRegular(GribGrid):
@@ -31,9 +56,12 @@ class GaussianRegular(GribGrid):
         lats = np.rad2deg(-np.arcsin(roots_legendre(2 * N)[0]))
         lons = np.linspace(0, 360, 4 * N, endpoint=False)
 
-        lons, lats = np.meshgrid(lons, lats)
-
-        return {"lon": lons.ravel(), "lat": lats.ravel()}
+        return xr.Dataset(
+            coords={
+                "lat": (("lat",), lats, default_attrs["lat"]),
+                "lon": (("lon",), lons, default_attrs["lon"]),
+            }
+        )
 
 
 class LatLonReduced(GribGrid):
@@ -45,7 +73,13 @@ class LatLonReduced(GribGrid):
         lons = np.concatenate([np.linspace(0, 360, nl, endpoint=False) for nl in pl])
         single_lats = np.linspace(90, -90, len(pl), endpoint=True)
         lats = np.concatenate([[lat] * nl for nl, lat in zip(pl, single_lats)])
-        return {"lon": lons, "lat": lats}
+
+        return xr.Dataset(
+            coords={
+                "lat": (("value",), lats, default_attrs["lat"]),
+                "lon": (("value",), lons, default_attrs["lon"]),
+            }
+        )
 
 
 class LatLonRegular(GribGrid):
@@ -73,12 +107,15 @@ class LatLonRegular(GribGrid):
         iInc = -iInc if kwargs["iScansNegatively"] else iInc
         jInc = jInc if kwargs["jScansPositively"] else -jInc
 
-        lons, lats = np.meshgrid(
-            (lonFirst + np.arange(Ni) * iInc + 180) % 360 - 180,
-            latFirst + np.arange(Nj) * jInc,
-        )
+        lons = (lonFirst + np.arange(Ni) * iInc + 180) % 360 - 180
+        lats = latFirst + np.arange(Nj) * jInc
 
-        return {"lon": lons.ravel(), "lat": lats.ravel()}
+        return xr.Dataset(
+            coords={
+                "lat": (("lat",), lats, default_attrs["lat"]),
+                "lon": (("lon",), lons, default_attrs["lon"]),
+            }
+        )
 
 
 class HEALPix(GribGrid):
@@ -99,7 +136,12 @@ class HEALPix(GribGrid):
             lonlat=True,
         )
 
-        return {"lon": lons, "lat": lats}
+        return xr.Dataset(
+            coords={
+                "lat": (("value",), lats, default_attrs["lat"]),
+                "lon": (("value",), lons, default_attrs["lon"]),
+            }
+        )
 
 
 class SphericalHarmonics(GribGrid):
