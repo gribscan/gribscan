@@ -22,6 +22,7 @@ dependencies = [
     "numcodecs>=0.10.0",
     "numpy",
     "scipy",
+    "xarray>=2025.9.0",
 ]
 dynamic = ["version"]
 
