@@ -59,14 +59,7 @@ class Magician(MagicianBase):
         }
 
     def coords_hook(self, name, coords):
-        if "time" in name:
-            attrs = {
-                "units": "seconds since 1970-01-01T00:00:00",
-                "calendar": "proleptic_gregorian",
-            }
-        else:
-            attrs = {}
-        return attrs, coords, {}, [name], None
+        return coords, {}, None
 
 
 class IFSMagician(MagicianBase):
@@ -95,41 +88,16 @@ class IFSMagician(MagicianBase):
         return {
             "dims": dims,
             "name": name,
-            "data_dims": ["value"],
             "attrs": {
                 **info["attrs"],
                 "coordinates": "lon lat",
+                "missingValue": 9999,
             },
         }
 
     def coords_hook(self, name, coords):
-        dims = [name]
-        attrs = {}
         compressor = numcodecs.Blosc("zstd")
-        if "time" in name:
-            attrs = {
-                "units": "seconds since 1970-01-01T00:00:00",
-                "calendar": "proleptic_gregorian",
-            }
-        elif name == "lat":
-            dims = ["value"]
-            attrs = {
-                "long_name": "latitude",
-                "units": "degrees_north",
-                "standard_name": "latitude",
-            }
-        elif name == "lon":
-            dims = ["value"]
-            attrs = {
-                "long_name": "longitude",
-                "units": "degrees_east",
-                "standard_name": "longitude",
-            }
-        return attrs, coords, {}, dims, compressor
-
-    def extra_coords(self, varinfo):
-        v0 = next(iter(varinfo.values()))
-        return varinfo2coords(v0)
+        return coords, {}, compressor
 
     def m2dataset(self, meta):
         return (
@@ -137,6 +105,26 @@ class IFSMagician(MagicianBase):
             if meta["attrs"]["typeOfLevel"].startswith("isobaricInhPa")
             else "atm2d"
         )
+
+
+class EnsembleMagician(IFSMagician):
+    varkeys = "param", "levtype"
+    dimkeys = "posix_time", "level", "member"
+
+    def m2dataset(self, meta):
+        """Divide datasets based on the IFS ensemble products description.
+
+        Reference:
+          https://www.ecmwf.int/en/forecasts/datasets/open-data#ensemble-products
+        """
+        if meta["member"] is None:
+            if meta["attrs"]["shortName"] in ("gh", "t", "ws", "msl"):
+                return "ensmean"
+            else:
+                return "prob"
+        if meta["attrs"]["typeOfLevel"].startswith("isobaricInhPa"):
+            return "atm3d"
+        return "atm2d"
 
 
 class HarmonieMagician(MagicianBase):
@@ -215,5 +203,6 @@ class HarmonieMagician(MagicianBase):
 MAGICIANS = {
     "monsoon": Magician,
     "ifs": IFSMagician,
+    "enfo": EnsembleMagician,
     "harmonie": HarmonieMagician,
 }

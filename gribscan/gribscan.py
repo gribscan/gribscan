@@ -8,6 +8,7 @@ from collections import defaultdict
 import cfgrib
 import eccodes
 import numpy as np
+import xarray as xr
 
 from .magician import Magician
 from . import gridutils as gu
@@ -88,21 +89,26 @@ def _split_file(f, skip=0):
         f.seek(0)
     part = 0
 
+    logger.debug(f"reading GRIB file with size {size}")
+
     while f.tell() < size:
         logger.debug(f"extract part {part + 1}")
         start = f.tell()
-        indicator = f.read(16)
+        indicator = f.peek(16)
         if indicator[:4] != b"GRIB":
             logger.info(f"non-consecutive messages, searching for part {part + 1}")
-            f.seek(start)
-            start = find_stream(f, b"GRIB")
-            indicator = f.read(16)
+            if (start := find_stream(f, b"GRIB")) is None:
+                # Handle non-GRIB data after the last GRIB message in a file
+                return
+            indicator = f.peek(16)
         if len(indicator) < 16:
+            indicator = f.read(16)
+            f.seek(start)
+        if len(indicator) < 16:
+            logger.info(f"couldn't peek or seek indicator, assuming end of file at {start}")
             return
 
         grib_edition = indicator[7]
-
-        f.seek(start)
 
         if grib_edition == 1:
             part_size = int.from_bytes(indicator[4:7], "big")
@@ -134,6 +140,7 @@ EXTRA_PARAMETERS = [
     "timeRangeIndicator",
     "P1",
     "P2",
+    "numberIncludedInAverage",
 ]
 
 production_template_numbers = {
@@ -216,6 +223,10 @@ time_range_units = {
 
 
 def get_time_offset(gribmessage, lean_towards="end"):
+    """Calculate time offset based on GRIB definition.
+
+    See: https://codes.ecmwf.int/grib/format/grib1/ctable/5/
+    """
     offset = 0  # np.timedelta64(0, "s")
     edition = int(gribmessage["editionNumber"])
     if edition == 1:
@@ -227,19 +238,31 @@ def get_time_offset(gribmessage, lean_towards="end"):
             offset += int(gribmessage["P1"]) * unit
         elif timeRangeIndicator == 1:
             pass
-        elif timeRangeIndicator in [2, 4]:
-            # Product with a valid time ranging between reference time + P1 and
-            # reference time + P2
+        elif timeRangeIndicator in [2, 3]:
             unit = time_range_units[
                 int(gribmessage.get("indicatorOfUnitOfTimeRange", 255))
             ]
-            offset += int(gribmessage["P1"]) * unit
-
+            if lean_towards == "start":
+                offset += int(gribmessage["P1"]) * unit
+            elif lean_towards == "end":
+                offset += int(gribmessage["P2"]) * unit
+        elif timeRangeIndicator == 4:
+            unit = time_range_units[
+                int(gribmessage.get("indicatorOfUnitOfTimeRange", 255))
+            ]
+            offset += int(gribmessage["P2"]) * unit
         elif timeRangeIndicator == 10:
             unit = time_range_units[
                 int(gribmessage.get("indicatorOfUnitOfTimeRange", 255))
             ]
             offset += (int(gribmessage["P1"]) * 256 + int(gribmessage["P2"])) * unit
+        elif timeRangeIndicator == 123:
+            unit = time_range_units[
+                int(gribmessage.get("indicatorOfUnitOfTimeRange", 255))
+            ]
+            if lean_towards == "end":
+                N = int(gribmessage["numberIncludedInAverage"])
+                offset += N * int(gribmessage["P2"]) * unit
         else:
             raise NotImplementedError(
                 f"don't know how to handle timeRangeIndicator {timeRangeIndicator}"
@@ -256,11 +279,17 @@ def get_time_offset(gribmessage, lean_towards="end"):
                 int(gribmessage.get("indicatorOfUnitOfTimeRange", 255))
             ]
             offset += gribmessage.get("forecastTime", 0) * unit
-        if options["timeRange"] and lean_towards == "end":
+        if options["timeRange"]:
             unit = time_range_units[
                 int(gribmessage.get("indicatorOfUnitOfTimeRange", 255))
             ]
-            offset += gribmessage.get("lengthOfTimeRange", 0) * unit
+            length = gribmessage.get("lengthOfTimeRange", 0)
+            if isinstance(length, np.ndarray):
+                if lean_towards == "start":
+                    length = int(length[0])
+                elif lean_towards == "end":
+                    length = int(length[-1])
+            offset += length * unit
     return offset
 
 
@@ -287,7 +316,7 @@ def scan_gribfile(filelike, **kwargs):
             except eccodes.KeyValueNotFoundError:
                 pass
 
-        yield {
+        idx = {
             "globals": global_attrs,
             "attrs": {
                 k: m.get(k, None)
@@ -300,11 +329,11 @@ def scan_gribfile(filelike, **kwargs):
             },
             "posix_time": m["time"] + get_time_offset(m),
             "domain": m["globalDomain"],
+            "member": m.get("number", None),
             "time": f"{m['hour']:02d}{m['minute']:02d}",
             "date": f"{m['year']:04d}{m['month']:02d}{m['day']:02d}",
             "levtype": m.get("typeOfLevel", None),
             "level": m.get("level", None),
-            "param": m.get("shortName", None),
             "type": m.get("dataType", None),
             "referenceTime": m["time"],
             "step": m["step"],
@@ -321,18 +350,43 @@ def scan_gribfile(filelike, **kwargs):
             **kwargs,
         }
 
+        if (param := m.get("shortName", "unknown")) != "unknown":
+            idx["param"] = param
+        else:
+            idx["param"] = ".".join(map(str, idx["parameter_code"].values()))
 
-def write_index(gribfile, idxfile=None):
+        yield idx
+
+
+def write_index(gribfile, idxfile=None, outdir=None, force=False):
     p = pathlib.Path(gribfile)
+    if outdir is None:
+        outdir = p.parent
+
     if idxfile is None:
-        idxfile = p.parent / (p.stem + ".index")
+        # Replace GRIB suffixes but append to all others (e.g. `fcst_phy2m.202410`).
+        suffix_map = {s: ".index" for s in (".grib", ".grb", ".grib2", ".grb2")}
+        idxfile = pathlib.Path(outdir) / (
+            p.with_suffix(suffix_map.get(p.suffix, p.suffix + ".index")).name
+        )
 
-    gen = scan_gribfile(open(p, "rb"), filename=p.name)
+    if idxfile.exists() and not force:
+        raise FileExistsError(f"Index file {idxfile} already exists!")
 
-    with open(idxfile, "w") as output_file:
+    # We need to use the gribfile (str) variable because Path() objects
+    # collapse the "/./" notation used to denote subtrees.
+    gen = scan_gribfile(open(p, "rb"), filename=gribfile)
+
+    tempfile = idxfile.with_suffix(".index.partial")
+    with open(tempfile, "w") as output_file:
         for record in gen:
             json.dump(record, output_file)
             output_file.write("\n")
+
+    if force or not idxfile.exists():
+        tempfile.rename(idxfile)
+    else:
+        logger.warning(f"Index file {idxfile} got created during runtime.")
 
 
 def parse_index(indexfile, m2key, duplicate="replace"):
@@ -406,12 +460,19 @@ def inspect_grib_indices(messages, magician):
             "shape": shape,
             "dim_id": dim_id,
             "coords": tuple(coords_by_key[varkey][i] for i in dim_id),
-            "data_shape": [size_by_key[varkey]],
-            "data_dims": ["cell"],
             "dtype": dtype_by_key[varkey],
             "attrs": attrs_by_key[varkey],
             "extra": extra_by_key[varkey],
         }
+
+        computed_coords = gu.varinfo2coords(info)
+
+        info = {
+            **info,
+            "data_dims": list(computed_coords.dims),
+            "data_shape": [computed_coords.sizes[d] for d in computed_coords.dims],
+        }
+
         varinfo[varkey] = {
             **info,
             **magician.variable_hook(varkey, info),
@@ -423,7 +484,15 @@ def inspect_grib_indices(messages, magician):
             coords[dim] |= cs
 
     coords = {
-        **{k: list(sorted(c)) for k, c in coords.items()},
+        **{
+            k: xr.DataArray(
+                np.asarray(list(sorted(c))),
+                dims=(k,),
+                attrs=gu.default_attrs.get(k, {}),
+            )
+            for k, c in coords.items()
+        },
+        **computed_coords.variables,
         **magician.extra_coords(varinfo),
     }
 
@@ -445,8 +514,11 @@ def build_refs(messages, global_attrs, coords, varinfo, magician):
         info = varinfo[key]
         cs = [coord[d] for d in info["dim_id"]]
         chunk_id = ".".join(
-            map(str, [coords_inv[d][c] for d, c in zip(info["dims"], cs)])
-        ) + ".0" * len(info["data_dims"])
+            itertools.chain(
+                map(str, [coords_inv[d][c] for d, c in zip(info["dims"], cs)]),
+                ["0"] * len(info["data_dims"])
+            )
+        )
         refs[info["name"] + "/" + chunk_id] = [
             msg["filename"],
             msg["_offset"],
@@ -481,27 +553,26 @@ def build_refs(messages, global_attrs, coords, varinfo, magician):
         )
 
     for name, cs in coords.items():
-        cs = np.asarray(cs)
-        attrs, cs, array_meta, dims, compressor = magician.coords_hook(name, cs)
+        cs, array_meta, compressor = magician.coords_hook(name, cs)
 
         if compressor is None:
             compressor_id = None
-            data = bytes(cs)
+            data = bytes(cs.values)
         else:
             compressor_id = compressor.get_config()
-            data = bytes(compressor.encode(cs))
-            
-        refs[f"{name}/.zattrs"] = json.dumps({**attrs, "_ARRAY_DIMENSIONS": dims})
+            data = bytes(compressor.encode(cs.values))
+
+        refs[f"{name}/.zattrs"] = json.dumps({**cs.attrs, "_ARRAY_DIMENSIONS": cs.dims})
         refs[f"{name}/.zarray"] = json.dumps(
             {
                 **{
-                    "chunks": cs.shape,
+                    "chunks": list(cs.shape),
                     "compressor": compressor_id,
                     "dtype": cs.dtype.str,
                     "fill_value": None,
                     "filters": [],
                     "order": "C",
-                    "shape": cs.shape,
+                    "shape": list(cs.shape),
                     "zarr_format": 2,
                 },
                 **array_meta,
@@ -535,10 +606,31 @@ def consolidate_metadata(refs):
     )
 
 
+def subtree(path, sep="/./"):
+    """Return sub-tree of a given path.
+
+    The start of a sub-tree is marked by a user-defined string (default '/./').
+
+    Example:
+
+    >>> subtree("/foo/bar/./baz/")
+    "baz/"
+
+    Notes:
+        This funcion mimicks the behaviour of rsync in -R/--relative mode.
+        https://askubuntu.com/a/552122
+    """
+    return path.split(sep)[-1]
+
+
 def prepend_path(refs, prefix):
-    """Prepend a path-prefix to all target filenames in a given reference filesystem."""
+    """Prepend a path-prefix to all target filenames in a given reference filesystem.
+
+    For absolute target paths, the existing target parents are overwritten.
+    """
     return {
-        k: [prefix + target[0]] + target[1:] if isinstance(target, list) else target
+        k: [(pathlib.Path(prefix) / subtree(target[0])).as_posix()] + target[1:]
+        if isinstance(target, list) else target
         for k, target in refs.items()
     }
 
@@ -562,7 +654,7 @@ def compress_extra_attributes(messages):
         mlast = m
 
 
-def grib_magic(filenames, magician=None, global_prefix=""):
+def grib_magic(filenames, magician=None, global_prefix=None):
     if magician is None:
         magician = Magician()
 
@@ -583,6 +675,9 @@ def grib_magic(filenames, magician=None, global_prefix=""):
         global_attrs, coords, varinfo = inspect_grib_indices(messages, magician)
         refs = build_refs(messages, global_attrs, coords, varinfo, magician)
         refs[".zmetadata"] = consolidate_metadata(refs)
-        refs_by_dataset[dataset] = prepend_path(refs, global_prefix)
+        if global_prefix is None:
+            refs_by_dataset[dataset] = refs
+        else:
+            refs_by_dataset[dataset] = prepend_path(refs, global_prefix)
 
     return refs_by_dataset
