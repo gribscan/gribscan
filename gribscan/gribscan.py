@@ -500,9 +500,13 @@ def inspect_grib_indices(messages, magician):
 
 
 def build_refs(messages, global_attrs, coords, varinfo, magician):
-    coords_inv = {
-        k: {v: i for i, v in enumerate(vs.values)} for k, vs in coords.items()
-    }
+    # xarray allows for multidimensional coordinates, for example lat/lon
+    # coordinates that change along both the x and y dimensions of a dataset.
+    # Only for the coordinates that are aligned with the data dimensions do we
+    # need to construct the inverse mapping from coordinate value to index. We
+    # select out these "principal" coordinates here.
+    principal_coords = {k: v for (k, v) in coords.items() if len(np.asarray(v).shape) == 1}
+    coords_inv = {k: {v: i for i, v in enumerate(vs)} for k, vs in principal_coords.items()}
 
     refs = {}
     for msg in messages:
@@ -528,8 +532,13 @@ def build_refs(messages, global_attrs, coords, varinfo, magician):
                 "_ARRAY_DIMENSIONS": list(info["dims"]) + list(info["data_dims"]),
             }
         )
-        shape = [len(coords[dim]) for dim in info["dims"]] + list(info["data_shape"])
-        chunks = [1 for _ in info["shape"]] + list(info["data_shape"])
+        data_shape = info["data_shape"]
+        if data_shape == "__from_data_dims__":
+            if not "data_dims" in info:
+                raise ValueError("To use __from_data_dims__, data_dims must be set")
+            data_shape = list(len(coords[dim]) for dim in info["data_dims"])
+        shape = [len(coords[dim]) for dim in info["dims"]] + data_shape
+        chunks = [1 for _ in info["shape"]] + data_shape
         refs[info["name"] + "/.zarray"] = json.dumps(
             {
                 "shape": shape,
@@ -569,7 +578,10 @@ def build_refs(messages, global_attrs, coords, varinfo, magician):
                 **array_meta,
             }
         )
-        refs[f"{name}/0"] = "base64:" + base64.b64encode(data).decode("ascii")
+        # depending on the number of dimensions, we need the first chunk have
+        # index 0 value for each dimension, e.g. 0 for 1D, 0.0 for 2D, etc
+        index_str = ".".join(["0"] * len(dims))
+        refs[f"{name}/{index_str}"] = "base64:" + base64.b64encode(data).decode("ascii")
 
     refs[".zgroup"] = json.dumps({"zarr_format": 2})
     refs[".zattrs"] = json.dumps(magician.globals_hook(global_attrs))

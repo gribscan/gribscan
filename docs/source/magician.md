@@ -71,7 +71,7 @@ The `info`-dict passed into this method will contain the following keys:
 * `shape`: shape across GRIB messages
 * `dim_id`: tuple with indices into the original `dimkeys`
 * `coords`: tuple of iterables containing all discovered coordinate values along each dimension
-* `data_shape`: list of shape within a GRIB message
+* `data_shape`: list of shape within a GRIB message (use the special value `__from_data_dims__` to infer the shape from the dimension names provided through `data_dims`)
 * `data_dims`: list of dimension names within a GRIB message
 * `dtype`: (numpy-) datatype of the values
 * `attrs`: attributes for the variable,
