@@ -83,6 +83,8 @@ class IFSMagician(MagicianBase):
             dims = tuple("halflevel" if dim == "level" else dim for dim in dims)
         if levtype == "generalVerticalLayer":
             dims = tuple("fulllevel" if dim == "level" else dim for dim in dims)
+        if levtype == "soilLayer":
+            dims = tuple("soil_layer" if dim == "level" else dim for dim in dims)
         dims = tuple("time" if dim == "posix_time" else dim for dim in dims)
 
         return {
