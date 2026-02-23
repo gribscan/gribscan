@@ -537,7 +537,7 @@ def build_refs(messages, global_attrs, coords, varinfo, magician):
                 "compressor": {"id": "gribscan.rawgrib"},
                 "dtype": info["dtype"],
                 "fill_value": info["attrs"].get("missingValue", 9999),
-                "filters": [],
+                "filters": None,
                 "order": "C",
                 "zarr_format": 2,
             }
@@ -561,7 +561,7 @@ def build_refs(messages, global_attrs, coords, varinfo, magician):
                     "compressor": compressor_id,
                     "dtype": cs.dtype.str,
                     "fill_value": None,
-                    "filters": [],
+                    "filters": None,
                     "order": "C",
                     "shape": list(cs.shape),
                     "zarr_format": 2,
