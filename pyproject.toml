@@ -29,7 +29,7 @@ dynamic = ["version"]
 
 [project.optional-dependencies]
 docs = [
-    "sphinx",
+    "sphinx<9",  # Needed for sphinx-diagrams==0.4.0
     "myst-parser",
     "sphinx-diagrams",
     "sphinx-book-theme",
