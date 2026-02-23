@@ -18,7 +18,7 @@
 # -- Project information -----------------------------------------------------
 
 project = 'gribscan'
-copyright = '2022, gribscan contributors'
+copyright = '2026, gribscan contributors'
 author = 'gribscan contributors'
 
 
